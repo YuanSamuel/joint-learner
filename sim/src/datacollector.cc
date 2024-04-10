@@ -1,4 +1,4 @@
-#include "dataCollector.h"
+#include "datacollector.h"
 
 DATACOLLECTOR cacheCollector;
 DATACOLLECTOR prefetcherCollector;
