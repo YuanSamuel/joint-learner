@@ -19,3 +19,4 @@ vcpkg_installed/
 **/_doxygen
 
 traces/
+collector_output/

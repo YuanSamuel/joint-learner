@@ -5,13 +5,37 @@ class DATACOLLECTOR {
     std::ofstream cache_access_log;
     std::ofstream prefetch_log;
 
-public:
+   public:
     DATACOLLECTOR() {
-        cache_access_log.open("cache_accesses.csv", std::ios::out);
-        prefetch_log.open("prefetches.csv", std::ios::out);
+        cache_access_log.open("collector_output/cache_accesses.csv", std::ios::out);
+        prefetch_log.open("collector_output/prefetches.csv", std::ios::out);
 
-        cache_access_log << "ip" << "," << "full_addr" << "," << "hit" << "\n";
-        prefetch_log << "ip" << "," << "full_addr" << "," << "hit" << "\n";
+        cache_access_log << "triggering_cpu"
+                         << ","
+                         << "set"
+                         << ","
+                         << "way"
+                         << ","
+                         << "full_addr"
+                         << ","
+                         << "ip"
+                         << ","
+                         << "victim_addr"
+                         << ","
+                         << "type"
+                         << ","
+                         << "hit"
+                         << "\n";
+        prefetch_log << "addr"
+                     << ","
+                     << "ip"
+                     << ","
+                     << "cache_hit"
+                     << ","
+                     << "useful_prefetch"
+                     << ","
+                     << "type"
+                     << "\n";
     }
 
     ~DATACOLLECTOR() {
@@ -24,15 +48,16 @@ public:
         }
     }
 
-    void log_cache_event(uint64_t ip, uint64_t full_addr, uint8_t hit) {
+    void log_cache_event(uint32_t triggering_cpu, uint32_t set, uint32_t way, uint64_t full_addr, uint64_t ip, uint64_t victim_addr, uint32_t type, uint8_t hit) {
         if (cache_access_log.is_open()) {
-            cache_access_log << ip << "," << full_addr << "," << (hit != 1 ? "HIT" : "MISS") << "\n";
+            cache_access_log << triggering_cpu << "," << set << "," << way << "," << full_addr << "," << ip << "," << victim_addr << "," << type << "," << static_cast<unsigned int>(hit)
+                             << "\n";
         }
     }
 
-    void log_prefetch_event(uint64_t ip, uint64_t full_addr, uint8_t hit, uint8_t useful_prefetch) {
-        if (cache_access_log.is_open()) {
-            cache_access_log << ip << "," << full_addr << "," << (hit != 1 ? "HIT" : "MISS") << "," << (useful_prefetch != 1 ? "true" : "false") << "\n";
+    void log_prefetch_event(uint64_t addr, uint64_t ip, uint8_t cache_hit, bool useful_prefetch, uint8_t type) {
+        if (prefetch_log.is_open()) {
+            prefetch_log << addr << "," << ip << "," << static_cast<unsigned int>(cache_hit) << "," << useful_prefetch << "," << static_cast<unsigned int>(type) << "\n";
         }
     }
 };
