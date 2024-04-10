@@ -6,7 +6,6 @@ using namespace std;
 #include <numeric>
 #include <vector>
 
-#include "helper_function.h"
 #include "optgen.h"
 
 #define MAX_PCMAP 31
@@ -17,6 +16,15 @@ using namespace std;
 #define GLIDER_THRESHOLD_LOW 0
 
 enum class Prediction { High, Medium, Low };
+
+uint64_t CRC( uint64_t _blockAddress )
+{
+    static const unsigned long long crcPolynomial = 3988292384ULL;
+    unsigned long long _returnVal = _blockAddress;
+    for( unsigned int i = 0; i < 32; i++ )
+        _returnVal = ( ( _returnVal & 1 ) == 1 ) ? ( ( _returnVal >> 1 ) ^ crcPolynomial ) : ( _returnVal >> 1 );
+    return _returnVal;
+}
 
 class IntegerSVM
 {
@@ -148,7 +156,7 @@ public:
     return Prediction::Medium;
   }
 
-  void increase(uint64_t PC)
+  void increment(uint64_t PC)
   {
     uint64_t encoded_pc = CRC(PC) % PCMAP_SIZE;
 
@@ -158,7 +166,7 @@ public:
     isvms[encoded_pc].update_weights(pchr, 1, selected_threshold);
   }
 
-  void decrease(uint64_t PC)
+  void decrement(uint64_t PC)
   {
     uint64_t encoded_pc = CRC(PC) % PCMAP_SIZE;
 

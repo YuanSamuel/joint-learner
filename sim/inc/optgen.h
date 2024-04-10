@@ -24,6 +24,8 @@ using namespace std;
 #include <set>
 #include <vector>
 
+#define OPTGEN_VECTOR_SIZE 128
+
 struct ADDR_INFO
 {
     uint64_t addr;
@@ -40,7 +42,7 @@ struct ADDR_INFO
         lru = 0;
     }
 
-    void update(unsigned int curr_quanta, uint64_t _pc, bool prediction)
+    void update(unsigned int curr_quanta, uint64_t _pc)
     {
         last_quanta = curr_quanta;
         PC = _pc;
