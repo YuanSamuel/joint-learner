@@ -1,7 +1,22 @@
-from collections import defaultdict, deque
+from collections import OrderedDict, deque, defaultdict
 import csv
 
 OPTGEN_VECTOR_SIZE = 128
+CACHE_SIZE = 36000
+TIMER_SIZE = 1024
+
+class CacheAccessItem:
+    def __init__(self, triggering_cpu, set, way, full_addr, ip, victim_addr, type, hit):
+        self.triggering_cpu = triggering_cpu
+        self.set = set
+        self.way = way
+        self.full_addr = full_addr
+        self.ip = ip
+        self.victim_addr = victim_addr
+        self.type = type
+        self.hit = hit
+        self.cached = False
+
 
 class ADDR_INFO:
     def __init__(self):
@@ -67,7 +82,8 @@ class OPTgen:
 
     def get_num_opt_hits(self):
         return self.num_cache
-    
+
+
 def replace_addr_history_element(addr_history):
     lru_addr = None
 
@@ -84,24 +100,52 @@ def replace_addr_history_element(addr_history):
 
 
 def label_optgen(cache_data_path, output_csv_path, optgen: OPTgen):
-    cache_accesses = defaultdict(deque)
-    prefetches = defaultdict(deque) 
+    # cache_accesses = defaultdict(deque)
+    # prefetches = defaultdict(deque)
+    labeled_data = OrderedDict()
+    optgen = OPTgen(CACHE_SIZE)
     addr_history = {}
     curr_quanta = 0
+    curr_quanta_full = 0
 
     with open(cache_data_path, mode="r") as infile, open(
         output_csv_path, mode="w", newline=""
     ) as outfile:
         reader = csv.DictReader(infile)
-        fieldnames = reader.fieldnames + ["IS_CACHED"]
+        fieldnames = reader.fieldnames + ["cached"]
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 
         for row in reader:
+            item = CacheAccessItem(
+                int(row["triggering_cpu"]),
+                int(row["set"]),
+                int(row["way"]),
+                int(row["full_addr"]),
+                int(row["ip"]),
+                int(row["victim_addr"]),
+                int(row["type"]),
+                int(row["hit"]),
+            )
+            labeled_data[curr_quanta_full] = item
             address = int(row["full_addr"])
             pc = int(row["ip"])
             is_prefetch = row["type"] == 2
 
+            address = address >> 6 << 6
+
+            if address in addr_history and not is_prefetch:
+                last_quanta = addr_history[address].last_quanta
+                # TODO: Address prefetched version
+                if optgen.should_cache(curr_quanta, last_quanta):
+                    labeled_data[last_quanta].cached = True
+                else:
+                    labeled_data[last_quanta].cached = True
+
+                optgen.add_access(curr_quanta)
+
+
+            
             # Simulate prefetch or access addition based on the type
             if is_prefetch:
                 optgen.add_prefetch(curr_quanta)
@@ -117,6 +161,7 @@ def label_optgen(cache_data_path, output_csv_path, optgen: OPTgen):
             row["IS_CACHED"] = "IS_CACHED" if is_cached else "NOT_CACHED"
             writer.writerow(row)
 
-            curr_quanta += 1  # Increment current quanta for next access
+            curr_quanta_full += 1
+            curr_quanta = curr_quanta_full % OPTGEN_VECTOR_SIZE
 
     return labels

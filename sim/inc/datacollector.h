@@ -1,5 +1,8 @@
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string>
+namespace fs = std::filesystem;
 
 class DATACOLLECTOR {
     std::ofstream cache_access_log;
@@ -7,6 +10,10 @@ class DATACOLLECTOR {
 
    public:
     DATACOLLECTOR() {
+        if (!fs::exists("collector_output")) {
+            fs::create_directory("collector_output");
+        }
+
         cache_access_log.open("collector_output/cache_accesses.csv", std::ios::out);
         prefetch_log.open("collector_output/prefetches.csv", std::ios::out);
 
@@ -52,6 +59,8 @@ class DATACOLLECTOR {
         if (cache_access_log.is_open()) {
             cache_access_log << triggering_cpu << "," << set << "," << way << "," << full_addr << "," << ip << "," << victim_addr << "," << type << "," << static_cast<unsigned int>(hit)
                              << "\n";
+        } else {
+            std::cout << "Cache access log is not open\n";
         }
     }
 

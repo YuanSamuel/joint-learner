@@ -156,7 +156,8 @@ void replace_addr_history_element(unsigned int sampler_set)
     addr_history[sampler_set].erase(lru_addr);
 }
 
-void update_addr_history_lru(unsigned int sampler_set, unsigned int curr_lru)
+void update_addr_history_lru
+(unsigned int sampler_set, unsigned int curr_lru)
 {
     for(map<uint64_t, ADDR_INFO>::iterator it=addr_history[sampler_set].begin(); it != addr_history[sampler_set].end(); it++)
     {
