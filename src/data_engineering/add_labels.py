@@ -25,6 +25,6 @@ def process_csv(input_file, output_file, cache_size):
 
 input_csv_path = "data/cache_accesses.csv"
 output_csv_path = "data/labeled_cache_accesses.csv"
-cache_size = 2048 * 16
+cache_size = 2
 
 process_csv(input_csv_path, output_csv_path, cache_size)

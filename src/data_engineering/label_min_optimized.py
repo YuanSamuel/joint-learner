@@ -1,6 +1,3 @@
-import heapq
-
-
 def preprocess_future_indices(accesses):
     next_access = {}
     last_occurrence = {}
@@ -43,17 +40,13 @@ def get_beladys(accesses, cache_size):
             else:
                 decisions.append("Not Cached")
 
-        # Rebuild the heap from the cache
-        heap = [(v, k) for k, v in cache.items()]
-        heapq.heapify(heap)
-
     return decisions
 
 
 if __name__ == "__main__":
     # Example usage
-    access_sequence = [5, 1, 3, 5, 1, 3, 5, 3]
-    cache_size = 2
+    access_sequence = [5, 1, 3, 5, 2, 4, 1, 5, 5, 1, 3, 5, 2, 3, 4, 5]
+    cache_size = 3
     result = get_beladys(access_sequence, cache_size)
     for res in result:
         print(res)
