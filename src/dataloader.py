@@ -1,36 +1,45 @@
 import csv
 import torch
+from collections import deque
 from torch.utils.data import Dataset, DataLoader
 
 class CacheAccessDataset(Dataset):
     def __init__(self, cache_data_path, ip_history_window):
         self.window = ip_history_window
+
         with open(cache_data_path, mode="r") as file:
             csv_reader = csv.DictReader(file)
             self.data = []
+            history_ips = deque()
+            seen_ips = set()
+
             for row in csv_reader:
-                self.data.append((int(row['ip']), row['decision']))
+                ip = int(row['ip']) >> 6 << 6
+                current_recent_ips = [x for x in history_ips if x != ip]
+
+                while len(current_recent_ips) < self.window:
+                    current_recent_ips.append(-1)
+
+                self.data.append((ip, current_recent_ips[:self.window], row['decision']))
+
+                if ip in seen_ips:
+                    history_ips = deque([x for x in history_ips if x != ip])
+                    seen_ips.remove(ip)
+
+                if len(history_ips) >= self.window * 2:
+                    removed_ip = history_ips.popleft()
+                    seen_ips.remove(removed_ip)
+
+                history_ips.append(ip)
+                seen_ips.add(ip)
     
     def __len__(self):
         return len(self.data)
     
-    def get_n_most_recent_ips(self, idx, n):
-        ips = []
-        current_ip = self.data[idx][0]
-        for i in range(idx, -1 , -1):
-            prev_ip = self.data[i][0]
-            if not prev_ip in ips and prev_ip != current_ip:
-                ips.append(prev_ip)
-                if len(ips) == n:
-                    break
-
-        ips.extend([-1] * (n - len(ips)))
-        return ips
-    
     def __getitem__(self, idx):
-        label = 1 if self.data[idx][1] == 'Cached' else 0
+        label = 1 if self.data[idx][2] == 'Cached' else 0
         # ips_tensor = torch.tensor(self.get_n_most_recent_ips(idx, self.window), dtype=torch.int)
-        return self.data[idx][0], self.get_n_most_recent_ips(idx, self.window), label
+        return self.data[idx][0], self.data[idx][1], label
 
 def cache_collate_fn(batch):
     ips, ip_histories, labels = zip(*batch)

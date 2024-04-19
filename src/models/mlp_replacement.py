@@ -9,6 +9,7 @@ class CacheReplacementNN(nn.Module):
             nn.Linear(num_features, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
