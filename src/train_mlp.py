@@ -51,4 +51,4 @@ for epoch in range(num_epochs):
 
     if loss < best_loss:
         best_loss = loss
-        torch.save(model.state_dict(), "./data/model/cache_repl_bce.pth")
+        torch.save(model.state_dict(), f"./data/model/{args.model_name}")
