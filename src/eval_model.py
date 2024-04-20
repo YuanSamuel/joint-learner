@@ -1,3 +1,4 @@
+import time
 import torch
 from torch import nn
 
@@ -21,18 +22,23 @@ print(f"Using device: {device}")
 
 print("Begin Eval")
 model.eval()
+start_time = time.time()
 
 correct = 0
 total = 0
 with torch.no_grad():
-    for data in dataloader:
+    for batch, data in enumerate(dataloader):
         inputs, labels = data
         inputs, labels = inputs.to(device), labels.to(device)
 
         outputs = model(inputs)
         predicted = (outputs > 0.5).float()
 
-        print(outputs, labels, predicted)
-
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
+
+        if batch % 10000 == 0 and batch != 0:
+            ms_per_batch = (time.time() - start_time) * 1000 / batch
+            print(f'batch {batch}/{len(dataloader)} | accuracy {correct}/{total} | ms/batch {ms_per_batch}')
+
+print(f'Accuracy: {correct}/{total} = {100 * correct / total:.2f}%')
