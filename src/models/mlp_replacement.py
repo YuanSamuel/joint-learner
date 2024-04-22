@@ -8,6 +8,7 @@ class CacheReplacementNN(nn.Module):
         self.network = nn.Sequential(
             nn.Linear(num_features, hidden_dim),
             nn.ReLU(),
+            nn.Dropout(),
             nn.Linear(hidden_dim, 1),
             nn.Sigmoid()
         )
