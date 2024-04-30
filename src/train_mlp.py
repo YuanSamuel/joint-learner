@@ -60,12 +60,17 @@ def train(args):
 
         if loss < best_loss:
             best_loss = loss
-            torch.save(model.state_dict(), f"./data/model/{args.model_name}")
+            torch.save(model.state_dict(), f"./data/model/{args.model_name}.pth")
             best_model = model
+        else:
+            return best_model
 
-        return best_model
+    return best_model
     
-def trace_model(model, example_input):
+def trace_model(model, args):
+    model.eval()
+    model = model.to("cpu")
+    example_input = torch.randint(0, 1<<12, (args.ip_history_window + 1,), dtype=torch.float32)
     traced_model = torch.jit.trace(model, example_input)
     traced_model.save(f"./data/model/{args.model_name}_traced.pt")
 
@@ -73,6 +78,4 @@ if __name__ == "__main__":
     args = parse_args()
     model = train(args)
 
-    model.eval()
-    example_input = torch.randint(0, 1<<12, (args.ip_history_window + 1,))
-    trace_model(model, example_input)
+    trace_model(model, args)

@@ -164,6 +164,12 @@ void update_addr_history_lru(unsigned int sampler_set, unsigned int curr_lru) {
     }
 }
 
+
+uint32_t sampled = 0;
+uint32_t inced = 0;
+uint32_t deced = 0;
+uint32_t newval = 0;
+
 // This function is called when a hit occurs or a miss is filled in the cache. The parameters passed are:
 // * triggering_cpu: the core index that initiated this fill
 // * set: the set that the fill occurred in.
@@ -202,6 +208,8 @@ void CACHE::update_replacement_state(uint32_t triggering_cpu, uint32_t set, uint
 
         assert(sampler_set < SAMPLER_SETS);
 
+        sampled++;
+
         // This line has been used before. Since the right end of a usage interval is always
         // a demand, ignore prefetches
         if ((addr_history[sampler_set].find(sampler_tag) != addr_history[sampler_set].end()) && (type != PREFETCH)) {
@@ -219,6 +227,7 @@ void CACHE::update_replacement_state(uint32_t triggering_cpu, uint32_t set, uint
                 //     prefetch_predictor->increment(addr_history[sampler_set][sampler_tag].PC);
                 // else
                 //     demand_predictor->increment(addr_history[sampler_set][sampler_tag].PC);
+                inced++;
                 demand_predictor->increment(addr_history[sampler_set][sampler_tag].PC);
             } else {
                 // Train the predictor negatively because OPT would not have cached this line
@@ -226,6 +235,7 @@ void CACHE::update_replacement_state(uint32_t triggering_cpu, uint32_t set, uint
                 //      prefetch_predictor->decrement(addr_history[sampler_set][sampler_tag].PC);
                 //  else
                 //      demand_predictor->decrement(addr_history[sampler_set][sampler_tag].PC);
+                deced++;
                 demand_predictor->decrement(addr_history[sampler_set][sampler_tag].PC);
             }
 
@@ -240,6 +250,8 @@ void CACHE::update_replacement_state(uint32_t triggering_cpu, uint32_t set, uint
         }
         // This is the first time we are seeing this line (could be demand or prefetch)
         else if (addr_history[sampler_set].find(sampler_tag) == addr_history[sampler_set].end()) {
+
+            newval++;
             // Find a victim from the sampled cache if we are sampling
             if (addr_history[sampler_set].size() == SAMPLER_WAYS)
                 replace_addr_history_element(sampler_set);
@@ -276,6 +288,9 @@ void CACHE::update_replacement_state(uint32_t triggering_cpu, uint32_t set, uint
             perset_optgen[set].add_prefetch(curr_quanta);
             update_addr_history_lru(sampler_set, addr_history[sampler_set][sampler_tag].lru);
         }
+
+        cout << "Sampled: " << sampled << " Inced: " << inced << " Deced: " << deced << " new: " << newval << endl;
+
         // Get Hawkeye's prediction for this line
         Prediction new_prediction = demand_predictor->get_prediction(ip);
         if (type == PREFETCH)

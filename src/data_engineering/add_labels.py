@@ -8,6 +8,8 @@ def process_csv(input_file, output_file, cache_size):
         csv_reader = csv.DictReader(file)
         rows = list(csv_reader)
         accesses = [(int(row["full_addr"]) >> 6 << 6) for row in rows]
+        accesses_set = set(accesses)
+        print(f"Unique accesses: {len(accesses_set)}")
         decisions = get_beladys(accesses, cache_size)
 
     print("Begin writing to output file")
@@ -23,8 +25,8 @@ def process_csv(input_file, output_file, cache_size):
             writer.writerow(row)
 
 
-input_csv_path = "data/cache_accesses.csv"
-output_csv_path = "data/labeled_cache_accesses.csv"
-cache_size = 2
+input_csv_path = "data/cache_accesses_mcf_100m.csv"
+output_csv_path = "data/labeled_cache_accesses_mcf_100m.csv"
+cache_size = 2048 * 16
 
 process_csv(input_csv_path, output_csv_path, cache_size)

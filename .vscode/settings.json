@@ -90,7 +90,10 @@
         "__threading_support": "cpp",
         "__verbose_abort": "cpp",
         "execution": "cpp",
-        "locale": "cpp"
+        "locale": "cpp",
+        "__tuple": "cpp",
+        "filesystem": "cpp",
+        "__nullptr": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "editor.detectIndentation": false

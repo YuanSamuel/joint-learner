@@ -170,6 +170,9 @@ void update_addr_history_lru
 }
 
 
+uint32_t sampled = 0;
+uint32_t inced = 0;
+
 // called on every cache hit and cache fill
 void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t paddr, uint64_t PC, uint64_t victim_addr, uint32_t type, uint8_t hit)
 {
@@ -208,8 +211,10 @@ void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t 
             bool wrap =  ((curr_timer - addr_history[sampler_set][sampler_tag].last_quanta) > OPTGEN_VECTOR_SIZE);
             uint64_t last_quanta = addr_history[sampler_set][sampler_tag].last_quanta % OPTGEN_VECTOR_SIZE;
             //and for prefetch hits, we train the last prefetch trigger PC
+            sampled++;
             if( !wrap && perset_optgen[set].should_cache(curr_quanta, last_quanta))
             {
+                inced++;
                 if(addr_history[sampler_set][sampler_tag].prefetched)
                     prefetch_predictor->increment(addr_history[sampler_set][sampler_tag].PC);
                 else
@@ -229,6 +234,8 @@ void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t 
 
             //Since this was a demand access, mark the prefetched bit as false
             addr_history[sampler_set][sampler_tag].prefetched = false;
+
+            
         }
         // This is the first time we are seeing this line (could be demand or prefetch)
         else if(addr_history[sampler_set].find(sampler_tag) == addr_history[sampler_set].end())
