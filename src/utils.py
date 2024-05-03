@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--eval_data", type=str, default="data/cache_accesses.csv")
     parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--model_name", type=str, default="cache_repl_bce.pth")
+    parser.add_argument("--model_name", type=str, default="cache_repl_bce")
 
     args = parser.parse_args()
     return args
