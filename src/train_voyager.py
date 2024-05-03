@@ -5,6 +5,11 @@ from utils import parse_args, load_config
 from dataloader import read_benchmark_trace
 from models.voyager import Voyager
 from loss_fns.hierarchical_ce import HierarchicalCrossEntropyWithLogitsLoss
+from eval.measure_voyager import (
+    count_page_correct,
+    count_offset_correct,
+    count_overall_correct,
+)
 
 
 def train(args):
@@ -20,7 +25,10 @@ def train(args):
 
     # Create and compile the model
     model = Voyager(config, benchmark.num_pcs(), benchmark.num_pages())
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
+    print(f"Using device: {device}")
 
     dataloader = benchmark.split()
 
@@ -31,9 +39,7 @@ def train(args):
     # scheduler = ExponentialLR(optimizer, gamma=0.95)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     best_model = model
-    print(f"Using device: {device}")
 
     print("Begin Training")
     model.train()
@@ -46,51 +52,40 @@ def train(args):
         total_loss = 0
         total_page_correct = 0
         total_offset_correct = 0
+        total_correct = 0
         for batch, data in enumerate(dataloader):
             _, _, x, y_page, y_offset = data
             x, y_page, y_offset = x.to(device), y_page.to(device), y_offset.to(device)
             optimizer.zero_grad()
+
             outputs = model(x)
-
-            # print("------")
-            # print(outputs)
-            # print(y_page, y_offset)
-            # print(outputs.shape, y_page.shape, y_offset.shape)
-
             loss = criterion(outputs, (y_page, y_offset))
 
             loss.backward()
-
-            for name, param in model.named_parameters():
-                print(f"Tensor: {name}")
-                print(f" Requires grad: {param.requires_grad}")
-                print(f" Grad function: {param.grad_fn}")
-                if param.grad_fn is None and param.requires_grad:
-                    print(f" Warning: {name} requires grad but has no grad function!")
-                # if param.grad is not None:
-                #     print(f"{name} gradient mean: {param.grad.mean().item()}")
-                # else:
-                #     print(f"{name} has no gradient")
-
-
             optimizer.step()
             total_loss += loss.item()
+
             total_page_correct += count_page_correct(
                 y_page, outputs, num_offsets, config
             )
             total_offset_correct += count_offset_correct(
                 y_offset, outputs, num_offsets, config
             )
+            total_correct += count_overall_correct(
+                y_page, y_offset, outputs, num_offsets, config
+            )
 
             if batch % 1000 == 0 and batch != 0:
                 ms_per_batch = (time.time() - start_time) * 1000 / batch
+                page_acc = total_page_correct / (batch * args.batch_size) * 100
+                offset_acc = total_offset_correct / (batch * args.batch_size) * 100
+                overall_acc = total_correct / (batch * args.batch_size) * 100
                 print(
-                    f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches | ms/batch {ms_per_batch} |  \
-                    loss {total_loss:.4f} | page_acc {total_page_correct / (batch * args.batch_size) * 100:.4f} | offset_acc {total_offset_correct / (batch * args.batch_size) * 100:.4f}"
+                    f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches"
+                    + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f}" 
+                    + f" | page_acc {page_acc:.4f} | offset_acc {offset_acc:.4f}"
+                    + f" | overall_acc {overall_acc:.4f}"
                 )
-                # total_page_correct = 0
-                # total_offset_correct = 0
-                # total_loss = 0
         # scheduler.step()
 
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
@@ -104,36 +99,6 @@ def train(args):
             return best_model
 
     return best_model
-
-
-def count_page_correct(y_page, outputs, num_offsets, config):
-    y_page_labels = y_page[:, -1]
-    if config.sequence_loss:
-        outputs = outputs[:, -1]
-    if config.multi_label:
-        pass
-    #     y_page = multi_one_hot(y_page_labels, tf.shape(outputs)[-1] - self.num_offsets)
-    #     page_correct = (y_page > 0.5) & (outputs[:, :-self.num_offsets] >= 0)
-    else:
-        # Compare labels against argmax
-        page_correct = (y_page_labels == outputs[:, :-num_offsets].argmax(dim=-1)).int()
-    return page_correct.sum().item()
-
-
-def count_offset_correct(y_offset, outputs, num_offsets, config):
-    y_offset_labels = y_offset[:, -1]
-    if config.sequence_loss:
-        outputs = outputs[:, -1]
-    if config.multi_label:
-        pass
-        # y_offset = multi_one_hot(y_offset_labels, self.num_offsets)
-        # offset_correct = (y_offset > 0.5) & (y_pred[:, -self.num_offsets:] >= 0)
-    else:
-        # Compare labels against argmax
-        offset_correct = y_offset_labels == torch.argmax(
-            outputs[:, -num_offsets:], dim=-1
-        )
-    return offset_correct.sum().item()
 
 
 if __name__ == "__main__":

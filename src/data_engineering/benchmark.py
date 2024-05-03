@@ -404,6 +404,10 @@ class BenchmarkTrace:
             end = self.data[idx, 4].item()
             start = end - self.config.sequence_length - self.config.prediction_depth
 
+            if end == 0:
+                print(idx, cur_pc)
+                return idx, 0, torch.zeros(3 * self.config.sequence_length), 0, 0
+
             if self.config.pc_localized:
                 indices = self.pc_data[cur_pc][start : end + 1].long()
                 hist = self.data[indices]
@@ -504,7 +508,7 @@ class BenchmarkTrace:
         # train_start = start_epoch * epoch_size + start_step * self.batch_size
         # train_end = self.config.num_epochs * epoch_size
         train_ds = PrefetcherDataset(self.data, 0, len(self.data), transform=lambda x: mapper(x))
-        train_loader = DataLoader(train_ds, batch_size=self.batch_size, shuffle=True, num_workers=4)
+        train_loader = DataLoader(train_ds, batch_size=self.batch_size, shuffle=True)
 
         # Validation Dataset
         # valid_ds = PrefetcherDataset(self.data, train_split, valid_split, transform=train_mapper)

@@ -147,34 +147,34 @@ class Voyager(nn.Module):
 
         page_embed, offset_embed = self.address_embed(pages, offsets)
 
-        # if self.config.pc_localized and self.config.global_stream:
-        #     pc_localized_pcs = x[:, 3 * self.sequence_length : 4 * self.sequence_length]
-        #     pc_localized_pages = x[
-        #         :, 4 * self.sequence_length : 5 * self.sequence_length
-        #     ]
-        #     pc_localized_offsets = x[
-        #         :, 5 * self.sequence_length : 6 * self.sequence_length
-        #     ]
+        if self.config.pc_localized and self.config.global_stream:
+            pc_localized_pcs = x[:, 3 * self.sequence_length : 4 * self.sequence_length]
+            pc_localized_pages = x[
+                :, 4 * self.sequence_length : 5 * self.sequence_length
+            ]
+            pc_localized_offsets = x[
+                :, 5 * self.sequence_length : 6 * self.sequence_length
+            ]
 
-        #     # Compute embeddings
-        #     pc_localized_pc_embed = self.pc_embedding(pc_localized_pcs)
-        #     pc_localized_page_embed, pc_localized_offset_embed = self.address_embed(
-        #         pc_localized_pages, pc_localized_offsets
-        #     )
+            # Compute embeddings
+            pc_localized_pc_embed = self.pc_embedding(pc_localized_pcs)
+            pc_localized_page_embed, pc_localized_offset_embed = self.address_embed(
+                pc_localized_pages, pc_localized_offsets
+            )
 
-        #     lstm_inputs = torch.cat(
-        #         [
-        #             pc_embed,
-        #             page_embed,
-        #             offset_embed,
-        #             pc_localized_pc_embed,
-        #             pc_localized_page_embed,
-        #             pc_localized_offset_embed,
-        #         ],
-        #         dim=2,
-        #     )
-        # else:
-        lstm_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
+            lstm_inputs = torch.cat(
+                [
+                    pc_embed,
+                    page_embed,
+                    offset_embed,
+                    pc_localized_pc_embed,
+                    pc_localized_page_embed,
+                    pc_localized_offset_embed,
+                ],
+                dim=2,
+            )
+        else:
+            lstm_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
 
         lstm_output = self.lstm_output(lstm_inputs)
         # print(page_embed.shape, offset_embed.shape)
