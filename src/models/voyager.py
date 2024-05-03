@@ -41,8 +41,8 @@ class Voyager(nn.Module):
     def init_embed(self):
         # Embedding Layers
         self.pc_embedding = nn.Embedding(self.pc_vocab_size, self.pc_embed_size)
-        self.page_embedding = nn.Embedding(self.page_vocab_size, self.page_embed_size)
-        self.offset_embedding = nn.Embedding(self.offset_size, self.offset_embed_size)
+        self.page_embedding = nn.Embedding(self.page_vocab_size, self.lstm_size)
+        self.offset_embedding = nn.Embedding(self.offset_size, self.lstm_size)
 
         nn.init.xavier_uniform_(self.pc_embedding.weight)
         nn.init.xavier_uniform_(self.page_embedding.weight)
@@ -56,9 +56,9 @@ class Voyager(nn.Module):
         )
 
         for name, param in self.mha.named_parameters():
-            if 'weight' in name:
+            if "weight" in name:
                 nn.init.xavier_uniform_(param)
-            if 'bias' in name:
+            if "bias" in name:
                 nn.init.constant_(param, 0)
 
     def init_linear(self):
@@ -106,33 +106,12 @@ class Voyager(nn.Module):
             offsets
         )  # (batch size, sequence_length, page_embed_size)
 
+        # MultiheadAttention in PyTorch expects (sequence length, batch size, embedding dimension)
         tmp_page_embed = page_embed.transpose(0, 1)
         offset_embed = offset_embed.transpose(0, 1)
 
-        # Compute page-aware offset embedding
-        # tmp_page_embed = page_embed.view(
-        #     -1, self.sequence_length, 1, self.page_embed_size
-        # )
-        # offset_embed = offset_embed.view(
-        #     -1,
-        #     self.sequence_length,
-        #     self.offset_embed_size // self.page_embed_size,
-        #     self.page_embed_size,
-        # )
-
-        # Ensure the input to MultiheadAttention is (L, N, E) where L is the sequence length, N is the batch size, E is the embedding dimension
-        # tmp_page_embed = tmp_page_embed.permute(1, 0, 2, 3).reshape(
-        #     self.sequence_length, -1, self.page_embed_size
-        # )
-        # offset_embed = offset_embed.permute(1, 0, 2, 3).reshape(
-        #     self.sequence_length, -1, self.page_embed_size
-        # )
-
-        # # MultiheadAttention in PyTorch expects (sequence length, batch size, embedding dimension)
         attn_output, _ = self.mha(tmp_page_embed, offset_embed, offset_embed)
-        offset_embed = attn_output.view(-1, self.sequence_length, self.page_embed_size)
-
-        # offset_embed = self.mha(tmp_page_embed, offset_embed, offset_embed, need_weights=False)[0].view(-1, self.sequence_length, self.page_embed_size)
+        offset_embed = attn_output.permute(1, 0, 2)
 
         return page_embed, offset_embed
 
@@ -141,6 +120,8 @@ class Voyager(nn.Module):
         coarse_out, _ = self.coarse_layers(lstm_inputs)
         fine_out, _ = self.fine_layers(lstm_inputs)
 
+        if self.sequence_loss:
+            return coarse_out, fine_out
         return coarse_out[:, -1, :], fine_out[:, -1, :]
 
     def linear(self, lstm_output):
@@ -166,39 +147,39 @@ class Voyager(nn.Module):
 
         page_embed, offset_embed = self.address_embed(pages, offsets)
 
-        if self.config.pc_localized and self.config.global_stream:
-            pc_localized_pcs = x[:, 3 * self.sequence_length : 4 * self.sequence_length]
-            pc_localized_pages = x[
-                :, 4 * self.sequence_length : 5 * self.sequence_length
-            ]
-            pc_localized_offsets = x[
-                :, 5 * self.sequence_length : 6 * self.sequence_length
-            ]
+        # if self.config.pc_localized and self.config.global_stream:
+        #     pc_localized_pcs = x[:, 3 * self.sequence_length : 4 * self.sequence_length]
+        #     pc_localized_pages = x[
+        #         :, 4 * self.sequence_length : 5 * self.sequence_length
+        #     ]
+        #     pc_localized_offsets = x[
+        #         :, 5 * self.sequence_length : 6 * self.sequence_length
+        #     ]
 
-            # Compute embeddings
-            pc_localized_pc_embed = self.pc_embedding(pc_localized_pcs)
-            pc_localized_page_embed, pc_localized_offset_embed = self.address_embed(
-                pc_localized_pages, pc_localized_offsets
-            )
+        #     # Compute embeddings
+        #     pc_localized_pc_embed = self.pc_embedding(pc_localized_pcs)
+        #     pc_localized_page_embed, pc_localized_offset_embed = self.address_embed(
+        #         pc_localized_pages, pc_localized_offsets
+        #     )
 
-            lstm_inputs = torch.cat(
-                [
-                    pc_embed,
-                    page_embed,
-                    offset_embed,
-                    pc_localized_pc_embed,
-                    pc_localized_page_embed,
-                    pc_localized_offset_embed,
-                ],
-                dim=2,
-            )
-        else:
-            lstm_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
+        #     lstm_inputs = torch.cat(
+        #         [
+        #             pc_embed,
+        #             page_embed,
+        #             offset_embed,
+        #             pc_localized_pc_embed,
+        #             pc_localized_page_embed,
+        #             pc_localized_offset_embed,
+        #         ],
+        #         dim=2,
+        #     )
+        # else:
+        lstm_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
 
         lstm_output = self.lstm_output(lstm_inputs)
+        # print(page_embed.shape, offset_embed.shape)
 
         return self.linear(lstm_output)
 
     def load(self, model_path):
         self.load_state_dict(torch.load(model_path))
-

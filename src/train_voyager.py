@@ -20,6 +20,7 @@ def train(args):
 
     # Create and compile the model
     model = Voyager(config, benchmark.num_pcs(), benchmark.num_pages())
+    model = model.to(device)
 
     dataloader = benchmark.split()
 
@@ -27,11 +28,10 @@ def train(args):
     criterion = HierarchicalCrossEntropyWithLogitsLoss(
         multi_label=config.multi_label, num_offsets=num_offsets
     )
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     # scheduler = ExponentialLR(optimizer, gamma=0.95)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
     best_model = model
     print(f"Using device: {device}")
 
@@ -51,9 +51,28 @@ def train(args):
             x, y_page, y_offset = x.to(device), y_page.to(device), y_offset.to(device)
             optimizer.zero_grad()
             outputs = model(x)
+
+            # print("------")
+            # print(outputs)
+            # print(y_page, y_offset)
+            # print(outputs.shape, y_page.shape, y_offset.shape)
+
             loss = criterion(outputs, (y_page, y_offset))
 
             loss.backward()
+
+            for name, param in model.named_parameters():
+                print(f"Tensor: {name}")
+                print(f" Requires grad: {param.requires_grad}")
+                print(f" Grad function: {param.grad_fn}")
+                if param.grad_fn is None and param.requires_grad:
+                    print(f" Warning: {name} requires grad but has no grad function!")
+                # if param.grad is not None:
+                #     print(f"{name} gradient mean: {param.grad.mean().item()}")
+                # else:
+                #     print(f"{name} has no gradient")
+
+
             optimizer.step()
             total_loss += loss.item()
             total_page_correct += count_page_correct(
