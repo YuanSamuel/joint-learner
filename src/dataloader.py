@@ -1,7 +1,10 @@
 import csv
+import lzma
 import torch
 from collections import deque
 from torch.utils.data import Dataset, DataLoader
+from data_engineering.benchmark import BenchmarkTrace
+
 
 class CacheAccessDataset(Dataset):
     def __init__(self, cache_data_path, ip_history_window):
@@ -14,13 +17,15 @@ class CacheAccessDataset(Dataset):
             seen_ips = set()
 
             for row in csv_reader:
-                ip = int(row['ip']) >> 6 << 6
+                ip = int(row["ip"]) >> 6 << 6
                 current_recent_ips = [x for x in history_ips if x != ip]
 
                 while len(current_recent_ips) < self.window:
                     current_recent_ips.append(-1)
 
-                self.data.append((ip, current_recent_ips[:self.window], row['decision']))
+                self.data.append(
+                    (ip, current_recent_ips[: self.window], row["decision"])
+                )
 
                 if ip in seen_ips:
                     history_ips = deque([x for x in history_ips if x != ip])
@@ -32,18 +37,21 @@ class CacheAccessDataset(Dataset):
 
                 history_ips.append(ip)
                 seen_ips.add(ip)
-    
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
-        label = 1 if self.data[idx][2] == 'Cached' else 0
+        label = 1 if self.data[idx][2] == "Cached" else 0
         # ips_tensor = torch.tensor(self.get_n_most_recent_ips(idx, self.window), dtype=torch.int)
         return self.data[idx][0], self.data[idx][1], label
 
+
 def cache_collate_fn(batch):
     ips, ip_histories, labels = zip(*batch)
-    combined_features = [torch.tensor([s] + l, dtype=torch.float32) for s, l in zip(ips, ip_histories)]
+    combined_features = [
+        torch.tensor([s] + l, dtype=torch.float32) for s, l in zip(ips, ip_histories)
+    ]
     features_tensor = torch.stack(combined_features, dim=0)
     labels_tensor = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
 
@@ -52,5 +60,23 @@ def cache_collate_fn(batch):
 
 def get_cache_dataloader(cache_data_path, ip_history_window, batch_size):
     dataset = CacheAccessDataset(cache_data_path, ip_history_window)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn)
+    dataloader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+    )
     return dataloader
+
+
+def read_benchmark_trace(benchmark_path, config, args):
+    """
+    Reads and processes the trace for a benchmark
+    """
+    benchmark = BenchmarkTrace(config, args)
+
+    if benchmark_path.endswith(".txt.xz"):
+        with lzma.open(benchmark_path, mode="rt", encoding="utf-8") as f:
+            benchmark.read_and_process_file(f)
+    else:
+        with open(benchmark_path, "r") as f:
+            benchmark.read_and_process_file(f)
+
+    return benchmark

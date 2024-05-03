@@ -13,7 +13,7 @@ class HierarchicalCrossEntropyWithLogitsLoss(nn.Module):
         if not self.multi_label:
             self.cross_entropy = nn.CrossEntropyLoss()
         
-    def forward(self, y_true, y_pred):
+    def forward(self, y_pred, y_true):
         if self.multi_label:
             # Extra time access with only one timestep
             y_page_labels = y_true[0].squeeze(dim=1)
@@ -26,14 +26,10 @@ class HierarchicalCrossEntropyWithLogitsLoss(nn.Module):
             page_loss = F.binary_cross_entropy_with_logits(y_pred[:, :-self.num_offsets], y_page, reduction='mean')
             offset_loss = F.binary_cross_entropy_with_logits(y_pred[:, -self.num_offsets:], y_offset, reduction='mean')
         else:
-            page_loss = self.cross_entropy(y_pred[:, :-self.num_offsets], y_true[0])
-            offset_loss = self.cross_entropy(y_pred[:, -self.num_offsets:], y_true[1])
+            # print(y_pred[:, :-self.num_offsets], y_true[0].squeeze(1))
+            # print(y_pred[:, -self.num_offsets:], y_true[1].squeeze(1))
+            page_loss = self.cross_entropy(y_pred[:, :-self.num_offsets], y_true[0].squeeze(1))
+            offset_loss = self.cross_entropy(y_pred[:, -self.num_offsets:], y_true[1].squeeze(1))
 
         return page_loss + offset_loss
-
-# Example usage
-# Assuming 'multi_label' is a boolean and 'logits' is a PyTorch tensor of shape [batch_size, num_classes],
-# 'targets' is a list of two tensors each of shape [batch_size].
-# HierarchicalCrossEntropyWithLogitsLoss object is created and used as follows:
-# model_loss = HierarchicalCrossEntropyWithLogitsLoss(multi_label=True)
-# loss = model_loss([target_page_labels, target_offset_labels], logits)
+    
