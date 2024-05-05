@@ -19,6 +19,9 @@ prediction_depth: 0
 global_stream: False
 pc_localized: True
 use_deltas: True
+# Contrastive Parameters
+contrastive_hidden_dim: 512
+contrastive_size: 256
 # LSTM Parameters
 pc_embed_size: 64
 page_embed_size: 256

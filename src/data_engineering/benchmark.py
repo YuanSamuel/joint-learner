@@ -351,15 +351,16 @@ class BenchmarkTrace:
         # Include the instruction ID for generating the prefetch file for running
         # in the ML-DPC modified version of ChampSim.
         # See github.com/Quangmire/ChampSim
-        self.data.append(
-            [
-                inst_id,
-                self.pc_mapping[pc],
-                self.page_mapping[page],
-                offset,
-                len(self.pc_data[self.pc_mapping[pc]]),
-            ]
-        )
+        if idx > 0:
+            self.data.append(
+                [
+                    inst_id,
+                    self.pc_mapping[pc],
+                    self.page_mapping[page],
+                    offset,
+                    len(self.pc_data[self.pc_mapping[pc]]),
+                ]
+            )
         self.orig_addr.append(cache_line)
         self.pc_data[self.pc_mapping[pc]].append(len(self.data) - 1)
 
@@ -405,9 +406,8 @@ class BenchmarkTrace:
             start = end - self.config.sequence_length - self.config.prediction_depth
 
             if end == 0:
-                print(idx, cur_pc)
-                return idx, 0, torch.zeros(3 * self.config.sequence_length), 0, 0
-
+                return idx, 0, torch.zeros(self.config.sequence_length * 3, dtype=torch.long), torch.tensor([0], dtype=torch.long), torch.tensor([0], dtype=torch.long)
+            
             if self.config.pc_localized:
                 indices = self.pc_data[cur_pc][start : end + 1].long()
                 hist = self.data[indices]

@@ -1,12 +1,14 @@
 from torch import nn
 import numpy as np
 
+from models.contrastive_encoder import ContrastiveEncoder
 
 class CacheReplacementNN(nn.Module):
     def __init__(self, num_features, hidden_dim):
         super(CacheReplacementNN, self).__init__()
         self.network = nn.Sequential(
-            nn.Linear(num_features, hidden_dim),
+            ContrastiveEncoder(num_features, hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(hidden_dim, 1),

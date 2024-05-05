@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from models.contrastive_encoder import ContrastiveEncoder
+
 
 class Voyager(nn.Module):
 
@@ -25,8 +27,10 @@ class Voyager(nn.Module):
         self.batch_size = config.batch_size
         self.sequence_loss = config.sequence_loss
         self.dropout = config.lstm_dropout
+        self.contrastive_hidden_dim = config.contrastive_hidden_dim
+        self.contrastive_size = config.contrastive_size
 
-        self.input_size = (
+        self.encoder_input_size = (
             self.pc_embed_size + self.page_embed_size + self.offset_embed_size
         )
 
@@ -35,6 +39,7 @@ class Voyager(nn.Module):
     def init(self):
         self.init_embed()
         self.init_mha()
+        self.init_contrastive()
         self.init_lstm()
         self.init_linear()
 
@@ -72,7 +77,7 @@ class Voyager(nn.Module):
     def init_lstm(self):
         coarse_lstm_layers = []
         fine_lstm_layers = []
-        input_size = self.input_size
+        input_size = self.contrastive_size
 
         for i in range(self.num_layers):
             coarse_lstm_layer = nn.LSTM(
@@ -98,6 +103,11 @@ class Voyager(nn.Module):
         self.coarse_layers = nn.Sequential(*coarse_lstm_layers)
         self.fine_layers = nn.Sequential(*fine_lstm_layers)
 
+    def init_contrastive(self):
+        self.contrastive_encoder = ContrastiveEncoder(
+            self.encoder_input_size, self.contrastive_hidden_dim, self.contrastive_size
+        )
+
     def address_embed(self, pages, offsets):
         page_embed = self.page_embedding(
             pages
@@ -114,6 +124,10 @@ class Voyager(nn.Module):
         offset_embed = attn_output.permute(1, 0, 2)
 
         return page_embed, offset_embed
+
+    def contrastive_embed(self, contrastive_inputs):
+        embed = self.contrastive_encoder(contrastive_inputs)
+        return embed
 
     def lstm_output(self, lstm_inputs):
         # lstm_inputs = F.dropout(lstm_inputs, p=self.config.dropout, training=training)
@@ -174,7 +188,8 @@ class Voyager(nn.Module):
                 dim=2,
             )
         else:
-            lstm_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
+            contrastive_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
+            lstm_inputs = self.contrastive_embed(contrastive_inputs)
 
         lstm_output = self.lstm_output(lstm_inputs)
         # print(page_embed.shape, offset_embed.shape)

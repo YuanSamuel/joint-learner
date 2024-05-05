@@ -25,8 +25,8 @@ def process_csv(input_file, output_file, cache_size):
             writer.writerow(row)
 
 
-input_csv_path = "data/cache_accesses_mcf_100m.csv"
-output_csv_path = "data/labeled_cache_accesses_mcf_100m.csv"
-cache_size = 2048 * 16
+input_csv_path = "data/cache_accesses_xalancmk_s_20m.csv"
+output_csv_path = "data/labeled_cache_xalancmk_s_20m.csv"
+cache_size = 2048 * 2
 
 process_csv(input_csv_path, output_csv_path, cache_size)

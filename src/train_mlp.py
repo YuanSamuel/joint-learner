@@ -7,6 +7,7 @@ from models.mlp_replacement import CacheReplacementNN
 from dataloader import get_cache_dataloader
 from utils import parse_args
 
+
 def train(args):
     print(f"------------------------------")
     print(f"Config: dim {args.hidden_dim} window {args.ip_history_window}")
@@ -37,6 +38,7 @@ def train(args):
     for epoch in range(num_epochs):
         start_time = time.time()
         total_loss = 0
+        total_correct = 0
         for batch, data in enumerate(dataloader):
             inputs, labels = data
             inputs, labels = inputs.to(device), labels.to(device)
@@ -47,11 +49,15 @@ def train(args):
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+            total_correct += count_correct(outputs, labels)
 
             if batch % 1000 == 0 and batch != 0:
                 ms_per_batch = (time.time() - start_time) * 1000 / batch
+                acc = total_correct / (1000 * args.batch_size)
                 print(
-                    f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches | ms/batch {ms_per_batch} | loss {total_loss:.4f}"
+                    f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches"
+                    + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f}"
+                    + f" | acc {acc:.4f}"
                 )
         scheduler.step()
 
@@ -66,13 +72,21 @@ def train(args):
             return best_model
 
     return best_model
-    
+
+
+def count_correct(outputs, labels):
+    return (outputs == labels).sum().item()
+
+
 def trace_model(model, args):
     model.eval()
     model = model.to("cpu")
-    example_input = torch.randint(0, 1<<12, (args.ip_history_window + 1,), dtype=torch.float32)
+    example_input = torch.randint(
+        0, 1 << 12, (args.ip_history_window + 1,), dtype=torch.float32
+    )
     traced_model = torch.jit.trace(model, example_input)
     traced_model.save(f"./data/model/{args.model_name}_traced.pt")
+
 
 if __name__ == "__main__":
     args = parse_args()

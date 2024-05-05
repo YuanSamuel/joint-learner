@@ -47,7 +47,7 @@ def parse_args():
         "-p", "--prefetch_data_path", type=str, default="data/prefetches.csv"
     )
     parser.add_argument("--config", type=str, default="configs/base_voyager.yaml")
-    parser.add_argument("-l", "--learning_rate", type=float, default=0.001)
+    parser.add_argument("-l", "--learning_rate", type=float, default=0.0001)
     parser.add_argument("-d", "--hidden_dim", type=int, default=12)
     parser.add_argument("-w", "--ip_history_window", type=int, default=5)
     parser.add_argument("-e", "--num_epochs", type=int, default=10)
