@@ -20,6 +20,7 @@ global_stream: False
 pc_localized: True
 use_deltas: True
 # Contrastive Parameters
+use_contrastive: False
 contrastive_hidden_dim: 512
 contrastive_size: 256
 # LSTM Parameters

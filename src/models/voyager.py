@@ -27,6 +27,7 @@ class VoyagerEncoder(nn.Module):
         self.dropout = config.lstm_dropout
         self.contrastive_hidden_dim = config.contrastive_hidden_dim
         self.contrastive_size = config.contrastive_size
+        self.use_contrastive = config.use_contrastive
 
         self.encoder_input_size = (
             self.pc_embed_size + self.page_embed_size + self.offset_embed_size
@@ -126,7 +127,11 @@ class VoyagerEncoder(nn.Module):
                 dim=2,
             )
         else:
-            contrastive_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
+            if self.use_contrastive:
+                contrastive_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
+            else:
+                lstm_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
+                return lstm_inputs
 
         return self.contrastive_embed(contrastive_inputs)
 
@@ -154,6 +159,7 @@ class Voyager(nn.Module):
         self.dropout = config.lstm_dropout
         self.contrastive_hidden_dim = config.contrastive_hidden_dim
         self.contrastive_size = config.contrastive_size
+        self.use_contrastive = config.use_contrastive
 
         self.encoder_input_size = (
             self.pc_embed_size + self.page_embed_size + self.offset_embed_size
@@ -180,7 +186,10 @@ class Voyager(nn.Module):
     def init_lstm(self):
         coarse_lstm_layers = []
         fine_lstm_layers = []
-        input_size = self.contrastive_size
+        if self.use_contrastive:
+            input_size = self.contrastive_size
+        else:
+            input_size = self.encoder_input_size
 
         for i in range(self.num_layers):
             coarse_lstm_layer = nn.LSTM(
@@ -213,7 +222,10 @@ class Voyager(nn.Module):
 
         if self.sequence_loss:
             return coarse_out, fine_out
-        return coarse_out, fine_out
+        if self.use_contrastive:
+            return coarse_out, fine_out
+        else:
+            return coarse_out[:, -1, :], fine_out[:, -1, :]
 
     def linear(self, lstm_output):
         coarse_out, fine_out = lstm_output

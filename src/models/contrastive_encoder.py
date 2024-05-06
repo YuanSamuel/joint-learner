@@ -19,8 +19,7 @@ class ContrastiveEncoder(nn.Module):
         nn.init.xavier_uniform_(self.fc2.weight)
 
         # Attention mechanism
-        self.attention_weight_vector = nn.Parameter(torch.Tensor(out_dim))
-        nn.init.normal_(self.attention_weight_vector, mean=0.0, std=0.02)
+        self.attention = nn.MultiheadAttention(embed_dim=out_dim, num_heads=1, dropout=drop_out)
         # nn.init.xavier_uniform_(self.attention_weight_vector.data)
 
     def apply_attention(self, x):
@@ -49,7 +48,12 @@ class ContrastiveEncoder(nn.Module):
         x = self.fc2(x)
 
         if original_dim == 3:
-            x = x.view(batch_size, seq_length, -1)
-            x = self.apply_attention(x)
+            x = x.view(seq_length, batch_size, -1)
+            # Apply attention
+            x, _ = self.attention(x, x, x)  # Self-attention
+            x = x.transpose(0, 1).contiguous()  # Back to [batch size, seq_length, out_dim]
+            x = x.mean(dim=1)  # Mean pooling over sequence
+            # x = x.view(batch_size, seq_length, -1)
+            # x = self.apply_attention(x)
 
         return x

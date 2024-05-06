@@ -507,7 +507,7 @@ class BenchmarkTrace:
         # Training Dataset
         # train_start = start_epoch * epoch_size + start_step * self.batch_size
         # train_end = self.config.num_epochs * epoch_size
-        train_ds = PrefetcherDataset(self.data, 0, len(self.data), transform=lambda x: mapper(x))
+        train_ds = PrefetcherDataset(self.data, 0, int(len(self.data) * 0.3), transform=lambda x: mapper(x))
         train_loader = DataLoader(train_ds, batch_size=self.batch_size, shuffle=True)
 
         # Validation Dataset

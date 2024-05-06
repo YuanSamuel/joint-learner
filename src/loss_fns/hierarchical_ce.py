@@ -16,8 +16,14 @@ class HierarchicalCrossEntropyWithLogitsLoss(nn.Module):
     def forward(self, y_pred, y_true):
         if self.multi_label:
             # Extra time access with only one timestep
-            y_page_labels = y_true[0].squeeze(dim=1)
-            y_offset_labels = y_true[1].squeeze(dim=1)
+            y_page_labels = y_true[0].squeeze(1).squeeze(1)
+            y_offset_labels = y_true[1].squeeze(1).squeeze(1)
+
+            print("TESTING")
+            print(y_true[0])
+            print(y_page_labels)
+            print(y_page_labels)
+            print(y_true[0].shape, y_page_labels.shape)
             
             # Create one-hot representation for cross_entropy
             y_page = F.one_hot(y_page_labels, num_classes=y_pred.size(-1) - self.num_offsets).float()

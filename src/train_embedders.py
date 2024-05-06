@@ -41,8 +41,8 @@ def train(args):
     print(f"Using device: {device}")
 
     print("Begin Training")
-    best_voyager.train()
-    best_cache.train()
+    voyager_encoder.train()
+    cache_encoder.train()
 
     # Training loop
     num_epochs = args.num_epochs
@@ -77,7 +77,7 @@ def train(args):
                 ms_per_batch = (time.time() - start_time) * 1000 / batch
                 print(
                     f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches"
-                    + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f}"
+                    + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f} | most recent loss {loss:.4f}"
                 )
         # scheduler.step()
 
