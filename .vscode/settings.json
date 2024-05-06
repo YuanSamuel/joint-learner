@@ -93,7 +93,10 @@
         "locale": "cpp",
         "__tuple": "cpp",
         "filesystem": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "shared_mutex": "cpp",
+        "__functional_base": "cpp",
+        "__functional_base_03": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "editor.detectIndentation": false

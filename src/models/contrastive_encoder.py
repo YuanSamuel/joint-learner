@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class ContrastiveEncoder(nn.Module):
@@ -17,21 +18,38 @@ class ContrastiveEncoder(nn.Module):
         nn.init.xavier_uniform_(self.fc1.weight)
         nn.init.xavier_uniform_(self.fc2.weight)
 
+        # Attention mechanism
+        self.attention_weight_vector = nn.Parameter(torch.Tensor(out_dim))
+        nn.init.normal_(self.attention_weight_vector, mean=0.0, std=0.02)
+        # nn.init.xavier_uniform_(self.attention_weight_vector.data)
+
+    def apply_attention(self, x):
+        # Compute attention scores using a simple dot product, and softmax to form a probability distribution
+        attention_scores = torch.matmul(
+            x, self.attention_weight_vector
+        )  # [batch size, seq_length]
+        attention_scores = F.softmax(attention_scores, dim=1).unsqueeze(
+            2
+        )  # [batch size, seq_length, 1]
+
+        # Weighted sum of sequence elements
+        attended = torch.sum(x * attention_scores, dim=1)  # [batch size, out_dim]
+        return attended
+
     def forward(self, x):
-        if x.dim() == 3:
+        original_dim = x.dim()
+
+        if original_dim == 3:
             # Input shape [batch size, seq_length, input_size]
             batch_size, seq_length, embed_size = x.shape
-            x = x.view(-1, embed_size)  # Flatten seq_length into batch size for processing
-        elif x.dim() == 2:
-            # Input shape [batch size, input_size]
-            batch_size = x.size(0)
-            embed_size = x.size(1)
-        
+            x = x.view(-1, embed_size)
+
         x = self.dropout(self.ln1(self.fc1(x)))
         x = torch.relu(x)
         x = self.fc2(x)
 
-        if x.dim() == 2 and 'seq_length' in locals():
-            x = x.view(batch_size, seq_length, -1) 
+        if original_dim == 3:
+            x = x.view(batch_size, seq_length, -1)
+            x = self.apply_attention(x)
 
         return x

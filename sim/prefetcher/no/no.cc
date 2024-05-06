@@ -1,12 +1,12 @@
 #include "cache.h"
 #include "datacollector.h"
 
-extern DATACOLLECTOR prefetcherCollector;
+// extern DATACOLLECTOR dataCollector;
 
 void CACHE::prefetcher_initialize() {}
 
 uint32_t CACHE::prefetcher_cache_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, bool useful_prefetch, uint8_t type, uint32_t metadata_in) {
-    prefetcherCollector.log_prefetch_event(addr, ip, cache_hit, useful_prefetch, type);
+    DATACOLLECTOR::log_prefetch_event(addr, ip, cache_hit, useful_prefetch, type);
     return metadata_in;
 }
 

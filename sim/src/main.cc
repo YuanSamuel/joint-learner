@@ -27,6 +27,7 @@
 #include "stats_printer.h"
 #include "tracereader.h"
 #include "vmem.h"
+#include "datacollector.h"
 #include <CLI/CLI.hpp>
 #include <fmt/core.h>
 
@@ -46,6 +47,7 @@ int main(int argc, char** argv)
   uint64_t simulation_instructions = std::numeric_limits<uint64_t>::max();
   std::string json_file_name;
   std::vector<std::string> trace_names;
+  std::string run_name;
 
   auto set_heartbeat_callback = [&](auto) {
     for (O3_CPU& cpu : gen_environment.cpu_view())
@@ -65,9 +67,13 @@ int main(int argc, char** argv)
   auto json_option =
       app.add_option("--json", json_file_name, "The name of the file to receive JSON output. If no name is specified, stdout will be used")->expected(0, 1);
 
+  app.add_option("--name", run_name, "Run name")->default_val("default");
+
   app.add_option("traces", trace_names, "The paths to the traces")->required()->expected(NUM_CPUS)->check(CLI::ExistingFile);
 
   CLI11_PARSE(app, argc, argv);
+
+  DATACOLLECTOR::setName(run_name);
 
   const bool warmup_given = (warmup_instr_option->count() > 0) || (deprec_warmup_instr_option->count() > 0);
   const bool simulation_given = (sim_instr_option->count() > 0) || (deprec_sim_instr_option->count() > 0);

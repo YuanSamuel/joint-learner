@@ -5,11 +5,9 @@ import torch.nn.functional as F
 
 from models.contrastive_encoder import ContrastiveEncoder
 
-
-class Voyager(nn.Module):
-
+class VoyagerEncoder(nn.Module):
     def __init__(self, config, pc_vocab_size, page_vocab_size):
-        super(Voyager, self).__init__()
+        super(VoyagerEncoder, self).__init__()
         self.config = config
         self.steps_per_epoch = config.steps_per_epoch
         self.step = 0
@@ -40,9 +38,7 @@ class Voyager(nn.Module):
         self.init_embed()
         self.init_mha()
         self.init_contrastive()
-        self.init_lstm()
-        self.init_linear()
-
+        
     def init_embed(self):
         # Embedding Layers
         self.pc_embedding = nn.Embedding(self.pc_vocab_size, self.pc_embed_size)
@@ -65,43 +61,6 @@ class Voyager(nn.Module):
                 nn.init.xavier_uniform_(param)
             if "bias" in name:
                 nn.init.constant_(param, 0)
-
-    def init_linear(self):
-        # Linear layers
-        self.page_linear = nn.Linear(self.lstm_size, self.page_vocab_size)
-        self.offset_linear = nn.Linear(self.lstm_size, self.offset_size)
-
-        nn.init.xavier_uniform_(self.page_linear.weight)
-        nn.init.xavier_uniform_(self.offset_linear.weight)
-
-    def init_lstm(self):
-        coarse_lstm_layers = []
-        fine_lstm_layers = []
-        input_size = self.contrastive_size
-
-        for i in range(self.num_layers):
-            coarse_lstm_layer = nn.LSTM(
-                input_size=input_size,
-                hidden_size=self.lstm_size,
-                num_layers=1,
-                batch_first=True,
-                dropout=self.dropout,
-                bidirectional=False,
-            )
-            fine_lstm_layer = nn.LSTM(
-                input_size=input_size,
-                hidden_size=self.lstm_size,
-                num_layers=1,
-                batch_first=True,
-                dropout=self.dropout,
-                bidirectional=False,
-            )
-            coarse_lstm_layers.append(coarse_lstm_layer)
-            fine_lstm_layers.append(fine_lstm_layer)
-            input_size = self.lstm_size
-
-        self.coarse_layers = nn.Sequential(*coarse_lstm_layers)
-        self.fine_layers = nn.Sequential(*fine_lstm_layers)
 
     def init_contrastive(self):
         self.contrastive_encoder = ContrastiveEncoder(
@@ -128,27 +87,6 @@ class Voyager(nn.Module):
     def contrastive_embed(self, contrastive_inputs):
         embed = self.contrastive_encoder(contrastive_inputs)
         return embed
-
-    def lstm_output(self, lstm_inputs):
-        # lstm_inputs = F.dropout(lstm_inputs, p=self.config.dropout, training=training)
-        coarse_out, _ = self.coarse_layers(lstm_inputs)
-        fine_out, _ = self.fine_layers(lstm_inputs)
-
-        if self.sequence_loss:
-            return coarse_out, fine_out
-        return coarse_out[:, -1, :], fine_out[:, -1, :]
-
-    def linear(self, lstm_output):
-        coarse_out, fine_out = lstm_output
-        # Pass through linear layers
-        coarse_logits = self.page_linear(coarse_out)
-        fine_logits = self.offset_linear(fine_out)
-
-        # Full sequence has a time dimension
-        if self.sequence_loss:
-            return torch.cat([coarse_logits, fine_logits], dim=2)
-        else:
-            return torch.cat([coarse_logits, fine_logits], dim=1)
 
     def forward(self, x):
         pcs, pages, offsets = (
@@ -189,7 +127,108 @@ class Voyager(nn.Module):
             )
         else:
             contrastive_inputs = torch.cat([pc_embed, page_embed, offset_embed], dim=2)
-            lstm_inputs = self.contrastive_embed(contrastive_inputs)
+
+        return self.contrastive_embed(contrastive_inputs)
+
+
+class Voyager(nn.Module):
+
+    def __init__(self, config, pc_vocab_size, page_vocab_size):
+        super(Voyager, self).__init__()
+        self.config = config
+        self.steps_per_epoch = config.steps_per_epoch
+        self.step = 0
+        self.epoch = 1
+
+        self.offset_size = 1 << config.offset_bits
+        self.pc_embed_size = config.pc_embed_size
+        self.page_embed_size = config.page_embed_size
+        self.offset_embed_size = config.page_embed_size * config.num_experts
+        self.lstm_size = config.lstm_size
+        self.num_layers = config.lstm_layers
+        self.sequence_length = config.sequence_length
+        self.pc_vocab_size = pc_vocab_size
+        self.page_vocab_size = page_vocab_size
+        self.batch_size = config.batch_size
+        self.sequence_loss = config.sequence_loss
+        self.dropout = config.lstm_dropout
+        self.contrastive_hidden_dim = config.contrastive_hidden_dim
+        self.contrastive_size = config.contrastive_size
+
+        self.encoder_input_size = (
+            self.pc_embed_size + self.page_embed_size + self.offset_embed_size
+        )
+
+        self.init()
+
+    def init(self):
+        self.init_embed()
+        self.init_lstm()
+        self.init_linear()
+
+    def init_embed(self):
+        self.encoder = VoyagerEncoder(self.config, self.pc_vocab_size, self.page_vocab_size)
+
+    def init_linear(self):
+        # Linear layers
+        self.page_linear = nn.Linear(self.lstm_size, self.page_vocab_size)
+        self.offset_linear = nn.Linear(self.lstm_size, self.offset_size)
+
+        nn.init.xavier_uniform_(self.page_linear.weight)
+        nn.init.xavier_uniform_(self.offset_linear.weight)
+
+    def init_lstm(self):
+        coarse_lstm_layers = []
+        fine_lstm_layers = []
+        input_size = self.contrastive_size
+
+        for i in range(self.num_layers):
+            coarse_lstm_layer = nn.LSTM(
+                input_size=input_size,
+                hidden_size=self.lstm_size,
+                num_layers=1,
+                batch_first=True,
+                dropout=self.dropout,
+                bidirectional=False,
+            )
+            fine_lstm_layer = nn.LSTM(
+                input_size=input_size,
+                hidden_size=self.lstm_size,
+                num_layers=1,
+                batch_first=True,
+                dropout=self.dropout,
+                bidirectional=False,
+            )
+            coarse_lstm_layers.append(coarse_lstm_layer)
+            fine_lstm_layers.append(fine_lstm_layer)
+            input_size = self.lstm_size
+
+        self.coarse_layers = nn.Sequential(*coarse_lstm_layers)
+        self.fine_layers = nn.Sequential(*fine_lstm_layers)
+
+    def lstm_output(self, lstm_inputs):
+        # lstm_inputs = F.dropout(lstm_inputs, p=self.config.dropout, training=training)
+        coarse_out, _ = self.coarse_layers(lstm_inputs)
+        fine_out, _ = self.fine_layers(lstm_inputs)
+
+        if self.sequence_loss:
+            return coarse_out, fine_out
+        return coarse_out, fine_out
+
+    def linear(self, lstm_output):
+        coarse_out, fine_out = lstm_output
+        # Pass through linear layers
+        coarse_logits = self.page_linear(coarse_out)
+        fine_logits = self.offset_linear(fine_out)
+
+        # Full sequence has a time dimension
+        if self.sequence_loss:
+            return torch.cat([coarse_logits, fine_logits], dim=2)
+        else:
+            return torch.cat([coarse_logits, fine_logits], dim=1)
+
+    def forward(self, x):
+        lstm_inputs = self.encoder(x)
 
         lstm_output = self.lstm_output(lstm_inputs)
         # print(page_embed.shape, offset_embed.shape)

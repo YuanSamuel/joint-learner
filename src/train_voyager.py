@@ -91,8 +91,8 @@ def train(args):
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
         print(f"------------------------------")
 
-        if loss < best_loss:
-            best_loss = loss
+        if total_loss < best_loss:
+            best_loss = total_loss
             torch.save(model.state_dict(), f"./data/model/{args.model_name}.pth")
             best_model = model
         else:

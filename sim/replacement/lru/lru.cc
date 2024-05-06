@@ -6,7 +6,7 @@
 #include "cache.h"
 #include "datacollector.h"
 
-extern DATACOLLECTOR cacheCollector;
+// extern DATACOLLECTOR dataCollector;
 
 namespace {
 std::map<CACHE*, std::vector<uint64_t>> last_used_cycles;
@@ -31,7 +31,7 @@ void CACHE::update_replacement_state(uint32_t triggering_cpu, uint32_t set, uint
     if (!hit || access_type{type} != access_type::WRITE)  // Skip this for writeback hits
         ::last_used_cycles[this].at(set * NUM_WAY + way) = current_cycle;
 
-    cacheCollector.log_cache_event(triggering_cpu, set, way, full_addr, ip, victim_addr, type, hit);
+    DATACOLLECTOR::log_cache_event(triggering_cpu, set, way, full_addr, ip, victim_addr, type, hit);
 }
 
 void CACHE::replacement_final_stats() {}
