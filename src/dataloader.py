@@ -8,37 +8,41 @@ from data_engineering.benchmark import BenchmarkTrace
 from collections import namedtuple
 
 
+def get_cache_data(cache_data_path, ip_history_window):
+    with open(cache_data_path, mode="r") as file:
+        csv_reader = csv.DictReader(file)
+        data = []
+        history_ips = deque()
+        seen_ips = set()
+
+        for row in csv_reader:
+            ip = int(row["ip"])
+            current_recent_ips = [x for x in history_ips if x != ip]
+
+            while len(current_recent_ips) < ip_history_window:
+                current_recent_ips.append(-1)
+
+            data.append((ip, current_recent_ips[:ip_history_window], row["decision"]))
+
+            if ip in seen_ips:
+                history_ips = deque([x for x in history_ips if x != ip])
+                seen_ips.remove(ip)
+
+            if len(history_ips) >= ip_history_window * 2:
+                removed_ip = history_ips.popleft()
+                seen_ips.remove(removed_ip)
+
+            history_ips.append(ip)
+            seen_ips.add(ip)
+
+        return data
+
+
 class CacheAccessDataset(Dataset):
-    def __init__(self, cache_data_path, ip_history_window):
+    def __init__(self, data, ip_history_window, start, end):
         self.window = ip_history_window
 
-        with open(cache_data_path, mode="r") as file:
-            csv_reader = csv.DictReader(file)
-            self.data = []
-            history_ips = deque()
-            seen_ips = set()
-
-            for row in csv_reader:
-                ip = int(row["ip"])
-                current_recent_ips = [x for x in history_ips if x != ip]
-
-                while len(current_recent_ips) < self.window:
-                    current_recent_ips.append(-1)
-
-                self.data.append(
-                    (ip, current_recent_ips[: self.window], row["decision"])
-                )
-
-                if ip in seen_ips:
-                    history_ips = deque([x for x in history_ips if x != ip])
-                    seen_ips.remove(ip)
-
-                if len(history_ips) >= self.window * 2:
-                    removed_ip = history_ips.popleft()
-                    seen_ips.remove(removed_ip)
-
-                history_ips.append(ip)
-                seen_ips.add(ip)
+        self.data = data[start:end]
 
     def __len__(self):
         return len(self.data)
@@ -60,12 +64,24 @@ def cache_collate_fn(batch):
     return features_tensor, labels_tensor
 
 
-def get_cache_dataloader(cache_data_path, ip_history_window, batch_size):
-    dataset = CacheAccessDataset(cache_data_path, ip_history_window)
-    dataloader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+def get_cache_dataloader(cache_data_path, ip_history_window, batch_size, train_pct=0.3):
+    data = get_cache_data(cache_data_path, ip_history_window)
+
+    train_dataset = CacheAccessDataset(
+        data, ip_history_window, 0, int(len(data) * train_pct)
     )
-    return dataloader
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+    )
+
+    eval_dataset = CacheAccessDataset(
+        data, ip_history_window, int(len(data) * train_pct), len(data)
+    )
+    eval_dataloader = DataLoader(
+        eval_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+    )
+
+    return train_dataloader, eval_dataloader
 
 
 def read_benchmark_trace(benchmark_path, config, args):
@@ -101,7 +117,15 @@ class PrefetchInfo:
 
 
 class ContrastiveDataset(Dataset):
-    def __init__(self, cache_data_path, ip_history_window, prefetch_data_path, config):
+    def __init__(
+        self,
+        cache_data_path,
+        ip_history_window,
+        prefetch_data_path,
+        config,
+        start_pct,
+        end_pct,
+    ):
         self.window = ip_history_window
         self.config = config
         self.prefetch_info = PrefetchInfo(config)
@@ -109,6 +133,9 @@ class ContrastiveDataset(Dataset):
         self.process_cache_data(cache_data_path)
         self.process_prefetch_data(prefetch_data_path)
         self.make_pairs()
+        self.data = self.data[
+            int(len(self.data) * start_pct) : int(len(self.data) * end_pct)
+        ]
 
     def process_cache_data(self, cache_data_path):
         with open(cache_data_path, mode="r") as file:
@@ -127,11 +154,7 @@ class ContrastiveDataset(Dataset):
 
                 self.cache_timestamps[int(row["timestamp"])] = len(self.cache_data)
                 self.cache_data.append(
-                    (
-                        ip,
-                        current_recent_ips[: self.window],
-                        int(row["timestamp"])
-                    )
+                    (ip, current_recent_ips[: self.window], int(row["timestamp"]))
                 )
 
                 if ip in seen_ips:
@@ -225,7 +248,9 @@ class ContrastiveDataset(Dataset):
                     len(self.prefetch_info.data) - 1
                 )
         self.prefetch_info.data = torch.as_tensor(self.prefetch_info.data)
-        self.prefetch_info.pc_data = [torch.as_tensor(item) for item in self.prefetch_info.pc_data]
+        self.prefetch_info.pc_data = [
+            torch.as_tensor(item) for item in self.prefetch_info.pc_data
+        ]
 
     def make_pairs(self):
         self.data = []
@@ -299,12 +324,25 @@ def contrastive_collate_fn(batch):
 
 
 def get_contrastive_dataloader(
-    cache_data_path, ip_history_window, prefetch_data_path, config, batch_size
+    cache_data_path,
+    ip_history_window,
+    prefetch_data_path,
+    config,
+    batch_size,
+    start_pct=0,
+    end_pct=0.3,
 ):
     dataset = ContrastiveDataset(
-        cache_data_path, ip_history_window, prefetch_data_path, config
+        cache_data_path,
+        ip_history_window,
+        prefetch_data_path,
+        config,
+        start_pct,
+        end_pct,
     )
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=contrastive_collate_fn)
+    dataloader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, collate_fn=contrastive_collate_fn
+    )
     return (
         dataloader,
         len(dataset.prefetch_info.pc_mapping),

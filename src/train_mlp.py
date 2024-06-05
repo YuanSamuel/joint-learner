@@ -6,19 +6,27 @@ from torch.optim.lr_scheduler import ExponentialLR
 from models.mlp_replacement import CacheReplacementNN
 from dataloader import get_cache_dataloader
 from utils import parse_args
+from models.contrastive_encoder import ContrastiveEncoder
 
 
 def train(args):
     print(f"------------------------------")
     print(f"Config: dim {args.hidden_dim} window {args.ip_history_window}")
     print("Init Dataloader")
-    dataloader = get_cache_dataloader(
+    dataloader, _ = get_cache_dataloader(
         args.cache_data_path, args.ip_history_window, args.batch_size
     )
 
-    model = CacheReplacementNN(
-        num_features=args.ip_history_window + 1, hidden_dim=args.hidden_dim
-    )
+    if args.encoder_name != 'none':
+        contrastive_encoder = ContrastiveEncoder(args.ip_history_window + 1, 512, args.hidden_dim)
+        contrastive_encoder.load_state_dict(torch.load(f"./data/model/{args.encoder_name}.pth"))
+        model = CacheReplacementNN(
+            num_features=args.ip_history_window + 1, hidden_dim=args.hidden_dim, contrastive_encoder=contrastive_encoder
+        )
+    else:
+        model = CacheReplacementNN(
+            num_features=args.ip_history_window + 1, hidden_dim=args.hidden_dim
+        )
 
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
@@ -53,7 +61,7 @@ def train(args):
 
             if batch % 1000 == 0 and batch != 0:
                 ms_per_batch = (time.time() - start_time) * 1000 / batch
-                acc = total_correct / (1000 * args.batch_size)
+                acc = total_correct / (1000 * args.batch_size) * 100
                 print(
                     f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches"
                     + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f}"

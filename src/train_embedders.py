@@ -21,6 +21,8 @@ def train(args):
         args.prefetch_data_path,
         config,
         args.batch_size,
+        0,
+        0.3
     )
 
     voyager_encoder = VoyagerEncoder(config, num_pcs, num_pages)

@@ -9,11 +9,11 @@ from utils import parse_args
 args = parse_args()
 
 print("Init Dataloader")
-dataloader = get_cache_dataloader(args.cache_data_path, args.ip_history_window, args.batch_size)
+_, dataloader = get_cache_dataloader(args.cache_data_path, args.ip_history_window, args.batch_size)
 
 model = CacheReplacementNN(num_features=args.ip_history_window + 1, hidden_dim=args.hidden_dim)
 
-state_dict = torch.load(f"./data/model/{args.model_name}")
+state_dict = torch.load(f"./data/model/{args.model_name}.pth")
 model.load_state_dict(state_dict)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

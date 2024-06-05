@@ -55,6 +55,7 @@ def parse_args():
     parser.add_argument("--eval_data", type=str, default="data/cache_accesses.csv")
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--model_name", type=str, default="cache_repl_bce")
+    parser.add_argument("--encoder_name", type=str, default="none")
 
     args = parser.parse_args()
     return args
