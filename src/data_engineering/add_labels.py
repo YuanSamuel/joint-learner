@@ -1,6 +1,6 @@
+import argparse
 import csv
 from label_min_optimized import get_beladys
-
 
 def process_csv(input_file, output_file, cache_size):
     print("Begin processing file")
@@ -24,9 +24,22 @@ def process_csv(input_file, output_file, cache_size):
             row["decision"] = decision
             writer.writerow(row)
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-i", "--input", type=str, default="data/cache_accesses_sphinx.csv"
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, default="data/labeled_cache_sphinx.csv"
+    )
+    parser.add_argument("-c", "--cache_size", type=int, default=2048 * 2)
+    args = parser.parse_args()
+    return args
 
-input_csv_path = "data/cache_accesses_sphinx_real.csv"
-output_csv_path = "data/labeled_cache_sphinx_real.csv"
-cache_size = 2048 * 2
+if __name__ == "__main__":
+    args = parse_args()
+    input_csv_path = args.input
+    output_csv_path = args.output
+    cache_size = args.cache_size
+    process_csv(input_csv_path, output_csv_path, cache_size)
 
-process_csv(input_csv_path, output_csv_path, cache_size)

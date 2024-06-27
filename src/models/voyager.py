@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from models.contrastive_encoder import ContrastiveEncoder
 
 class VoyagerEncoder(nn.Module):
-    def __init__(self, config, pc_vocab_size, page_vocab_size):
+    def __init__(self, config, pc_vocab_size, page_vocab_size, encoder_name=None):
         super(VoyagerEncoder, self).__init__()
         self.config = config
         self.steps_per_epoch = config.steps_per_epoch
@@ -28,6 +28,8 @@ class VoyagerEncoder(nn.Module):
         self.contrastive_hidden_dim = config.contrastive_hidden_dim
         self.contrastive_size = config.contrastive_size
         self.use_contrastive = config.use_contrastive
+
+        self.encoder_name = encoder_name
 
         self.encoder_input_size = (
             self.pc_embed_size + self.page_embed_size + self.offset_embed_size
@@ -64,9 +66,15 @@ class VoyagerEncoder(nn.Module):
                 nn.init.constant_(param, 0)
 
     def init_contrastive(self):
-        self.contrastive_encoder = ContrastiveEncoder(
-            self.encoder_input_size, self.contrastive_hidden_dim, self.contrastive_size
-        )
+        if self.encoder_name:
+            self.contrastive_encoder = ContrastiveEncoder(
+                self.encoder_input_size, self.contrastive_hidden_dim, self.contrastive_size
+            )   
+            self.contrastive_encoder.load_state_dict(torch.load(f"./data/model/{self.encoder_name}.pth")) 
+        else:
+            self.contrastive_encoder = ContrastiveEncoder(
+                self.encoder_input_size, self.contrastive_hidden_dim, self.contrastive_size
+            )
 
     def address_embed(self, pages, offsets):
         page_embed = self.page_embedding(
@@ -138,7 +146,7 @@ class VoyagerEncoder(nn.Module):
 
 class Voyager(nn.Module):
 
-    def __init__(self, config, pc_vocab_size, page_vocab_size):
+    def __init__(self, config, pc_vocab_size, page_vocab_size, encoder_name=None):
         super(Voyager, self).__init__()
         self.config = config
         self.steps_per_epoch = config.steps_per_epoch
@@ -160,6 +168,8 @@ class Voyager(nn.Module):
         self.contrastive_hidden_dim = config.contrastive_hidden_dim
         self.contrastive_size = config.contrastive_size
         self.use_contrastive = config.use_contrastive
+        
+        self.encoder_name = encoder_name
 
         self.encoder_input_size = (
             self.pc_embed_size + self.page_embed_size + self.offset_embed_size
@@ -173,7 +183,7 @@ class Voyager(nn.Module):
         self.init_linear()
 
     def init_embed(self):
-        self.encoder = VoyagerEncoder(self.config, self.pc_vocab_size, self.page_vocab_size)
+        self.encoder = VoyagerEncoder(self.config, self.pc_vocab_size, self.page_vocab_size, encoder_name=self.encoder_name)
 
     def init_linear(self):
         # Linear layers

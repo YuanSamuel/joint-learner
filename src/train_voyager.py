@@ -23,8 +23,10 @@ def train(args):
     print("Init Dataloader")
     benchmark = read_benchmark_trace(args.prefetch_data_path, config, args)
 
+    encoder_name = args.encoder_name if args.encoder_name != 'none' else None
+
     # Create and compile the model
-    model = Voyager(config, benchmark.num_pcs(), benchmark.num_pages())
+    model = Voyager(config, benchmark.num_pcs(), benchmark.num_pages(), encoder_name=encoder_name)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
