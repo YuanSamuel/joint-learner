@@ -9,7 +9,7 @@ from utils import parse_args
 args = parse_args()
 
 print("Init Dataloader")
-_, dataloader = get_cache_dataloader(args.cache_data_path, args.ip_history_window, args.batch_size)
+_, _, dataloader = get_cache_dataloader(args.cache_data_path, args.ip_history_window, args.batch_size)
 
 model = CacheReplacementNN(num_features=args.ip_history_window + 1, hidden_dim=args.hidden_dim)
 

@@ -64,24 +64,34 @@ def cache_collate_fn(batch):
     return features_tensor, labels_tensor
 
 
-def get_cache_dataloader(cache_data_path, ip_history_window, batch_size, train_pct=0.3):
+def get_cache_dataloader(cache_data_path, ip_history_window, batch_size, train_pct=0.3, valid_pct=0.1):
     data = get_cache_data(cache_data_path, ip_history_window)
 
+    valid_start = int(len(data) * train_pct)
+    eval_start = int(len(data) * (train_pct + valid_pct))
+
     train_dataset = CacheAccessDataset(
-        data, ip_history_window, 0, int(len(data) * train_pct)
+        data, ip_history_window, 0, valid_start
     )
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
     )
 
+    valid_dataset = CacheAccessDataset(
+        data, ip_history_window, valid_start, eval_start
+    )
+    valid_dataloader = DataLoader(
+        valid_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+    )
+
     eval_dataset = CacheAccessDataset(
-        data, ip_history_window, int(len(data) * train_pct), len(data)
+        data, ip_history_window, eval_start, len(data)
     )
     eval_dataloader = DataLoader(
         eval_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
     )
 
-    return train_dataloader, eval_dataloader
+    return train_dataloader, valid_dataloader, eval_dataloader
 
 
 def read_benchmark_trace(benchmark_path, config, args):

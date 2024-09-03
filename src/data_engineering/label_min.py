@@ -4,6 +4,8 @@ def beladys_decision_algorithm(accesses, cache_size):
     decisions = []
 
     for i, access in enumerate(accesses):
+        if i % 100000 == 0:
+            print(f"Processing access {i} of {len(accesses)}")
         future_accesses = accesses[i+1:]
         if access in cache:
             # Calculate future indices for all items currently in the cache
@@ -38,8 +40,9 @@ def beladys_decision_algorithm(accesses, cache_size):
     return decisions
 
 # Example usage
-access_sequence = [5, 1, 3, 5, 2, 4, 1, 5, 5, 1, 3, 5, 2, 3, 4, 5]
-cache_size = 2
-result = beladys_decision_algorithm(access_sequence, cache_size)
-for res in result:
-    print(res)
+if __name__ == "__main__":
+    access_sequence = [5, 1, 3, 5, 2, 4, 1, 5, 5, 1, 3, 5, 2, 3, 4, 5]
+    cache_size = 2
+    result = beladys_decision_algorithm(access_sequence, cache_size)
+    for res in result:
+        print(res)

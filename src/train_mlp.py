@@ -13,7 +13,7 @@ def train(args):
     print(f"------------------------------")
     print(f"Config: dim {args.hidden_dim} window {args.ip_history_window}")
     print("Init Dataloader")
-    dataloader, _ = get_cache_dataloader(
+    dataloader, valid_dataloader, _ = get_cache_dataloader(
         args.cache_data_path, args.ip_history_window, args.batch_size
     )
 
@@ -38,12 +38,13 @@ def train(args):
     print(f"Using device: {device}")
 
     print("Begin Training")
-    model.train()
 
     # Training loop
     num_epochs = args.num_epochs
     best_loss = float("inf")
     for epoch in range(num_epochs):
+        # Train Phase
+        model.train()
         start_time = time.time()
         total_loss = 0
         total_correct = 0
@@ -61,7 +62,7 @@ def train(args):
 
             if batch % 1000 == 0 and batch != 0:
                 ms_per_batch = (time.time() - start_time) * 1000 / batch
-                acc = total_correct / (1000 * args.batch_size) * 100
+                acc = total_correct / (batch * args.batch_size) * 100
                 print(
                     f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches"
                     + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f}"
@@ -70,10 +71,29 @@ def train(args):
         scheduler.step()
 
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
+        print(f"------------------------------")    
+
+        # Validation phase
+        model.eval()
+        valid_loss = 0
+        valid_correct = 0
+        with torch.no_grad():
+            for batch, data in enumerate(valid_dataloader):
+                inputs, labels = data
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                valid_loss += loss.item()
+                valid_correct += count_correct(outputs, labels)
+        
+        valid_loss /= len(valid_dataloader)
+        valid_accuracy = valid_correct / len(valid_dataloader.dataset) * 100
+        
+        print(f"Validation Loss: {valid_loss:.4f}, Validation Accuracy: {valid_accuracy:.2f}%")
         print(f"------------------------------")
 
-        if total_loss < best_loss:
-            best_loss = total_loss
+        if valid_loss < best_loss:
+            best_loss = valid_loss
             torch.save(model.state_dict(), f"./data/model/{args.model_name}.pth")
             best_model = model
         else:
@@ -83,7 +103,7 @@ def train(args):
 
 
 def count_correct(outputs, labels):
-    return (outputs == labels).sum().item()
+    return (outputs > 0.5).float().eq(labels).sum().item()
 
 
 def trace_model(model, args):
