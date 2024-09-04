@@ -24,7 +24,7 @@ def get_beladys(accesses, cache_size):
         # Update or set the next use in the cache dictionary
         if access in cache:
             cache[access] = next_use
-            decisions.append("Cached")
+            decisions.append("In Cache")
         elif len(cache) < cache_size:
             # There's space in the cache
             cache[access] = next_use

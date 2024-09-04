@@ -64,31 +64,40 @@ def cache_collate_fn(batch):
     return features_tensor, labels_tensor
 
 
-def get_cache_dataloader(cache_data_path, ip_history_window, batch_size, train_pct=0.3, valid_pct=0.1):
+def get_cache_dataloader(
+    cache_data_path, ip_history_window, batch_size, train_pct=0.3, valid_pct=0.1
+):
     data = get_cache_data(cache_data_path, ip_history_window)
 
     valid_start = int(len(data) * train_pct)
     eval_start = int(len(data) * (train_pct + valid_pct))
 
-    train_dataset = CacheAccessDataset(
-        data, ip_history_window, 0, valid_start
-    )
+    train_dataset = CacheAccessDataset(data, ip_history_window, 0, valid_start)
     train_dataloader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=cache_collate_fn,
+        num_workers=4,
+        pin_memory=True if torch.cuda.is_available() else False,
     )
 
-    valid_dataset = CacheAccessDataset(
-        data, ip_history_window, valid_start, eval_start
-    )
+    valid_dataset = CacheAccessDataset(data, ip_history_window, valid_start, eval_start)
     valid_dataloader = DataLoader(
-        valid_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+        valid_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=cache_collate_fn,
+        num_workers=4,
     )
 
-    eval_dataset = CacheAccessDataset(
-        data, ip_history_window, eval_start, len(data)
-    )
+    eval_dataset = CacheAccessDataset(data, ip_history_window, eval_start, len(data))
     eval_dataloader = DataLoader(
-        eval_dataset, batch_size=batch_size, shuffle=True, collate_fn=cache_collate_fn
+        eval_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=cache_collate_fn,
+        num_workers=4,
     )
 
     return train_dataloader, valid_dataloader, eval_dataloader

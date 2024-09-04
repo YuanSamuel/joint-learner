@@ -1,7 +1,6 @@
 import argparse
 import csv
 from label_min_optimized import get_beladys
-from label_min import beladys_decision_algorithm
 
 def process_csv(input_file, output_file, cache_size):
     print("Begin processing file")
@@ -11,7 +10,7 @@ def process_csv(input_file, output_file, cache_size):
         accesses = [(int(row["full_addr"]) >> 6 << 6) for row in rows]
         accesses_set = set(accesses)
         print(f"Unique accesses: {len(accesses_set)}")
-        decisions = beladys_decision_algorithm(accesses, cache_size)
+        decisions = get_beladys(accesses, cache_size)
 
     print("Begin writing to output file")
     with open(output_file, mode="w", newline="") as file:

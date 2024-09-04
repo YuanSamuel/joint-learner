@@ -77,6 +77,7 @@ def train(args):
         model.eval()
         valid_loss = 0
         valid_correct = 0
+        valid_zeroes = 0
         with torch.no_grad():
             for batch, data in enumerate(valid_dataloader):
                 inputs, labels = data
@@ -85,11 +86,13 @@ def train(args):
                 loss = criterion(outputs, labels)
                 valid_loss += loss.item()
                 valid_correct += count_correct(outputs, labels)
+                valid_zeroes += outputs[outputs < 0.5].shape[0]
+
         
         valid_loss /= len(valid_dataloader)
         valid_accuracy = valid_correct / len(valid_dataloader.dataset) * 100
         
-        print(f"Validation Loss: {valid_loss:.4f}, Validation Accuracy: {valid_accuracy:.2f}%")
+        print(f"Validation Loss: {valid_loss:.4f}, Validation Accuracy: {valid_accuracy:.2f}%, Zeroes: {valid_zeroes}")
         print(f"------------------------------")
 
         if valid_loss < best_loss:
