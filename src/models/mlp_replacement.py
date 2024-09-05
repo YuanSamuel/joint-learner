@@ -26,7 +26,7 @@ class CacheReplacementNN(nn.Module):
                 nn.ReLU(),
                 nn.Dropout(),
                 nn.Linear(hidden_dim, 1),
-                nn.Sigmoid(),
+                # nn.Sigmoid(),
             )
 
         for layer in self.network:

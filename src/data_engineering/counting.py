@@ -1,27 +1,27 @@
 import pandas as pd
 
 # Replace 'your_file.csv' with the path to your CSV file
-csv_file = 'data/xalan_large_labeled.csv'
+csv_file = 'data/xalan_large_16ways_labeled.csv'
 
 # Read the CSV file into a DataFrame
 df = pd.read_csv(csv_file)
 
-# Count the number of occurrences of "Not Cached" in the "decision" column
+# Count Not Cached
 not_cached_count = df['decision'].value_counts().get('Not Cached', 0)
 
 print(f'{not_cached_count} / {len(df)} requests are not cached')
 
-# Count the number of occurrences of "Not Cached" in the "decision" column
-in_cache_count = df['decision'].value_counts().get('In Cache', 0)
-
-print(f'{in_cache_count} / {len(df)} requests are in the cache')
-
+# Count unique full_addr values
 df['modified_full_addr'] = (df['full_addr'] // 64) * 64
 
-# Count the number of unique modified full_addr values
 unique_full_addrs_count = df['modified_full_addr'].nunique()
 
 print(f'There are {unique_full_addrs_count} unique modified full_addr values')
+
+# Count unique PCs
+unique_ip_count = df['ip'].nunique()
+
+print(f'There are {unique_ip_count} unique PCs')
 
 
 # import matplotlib.pyplot as plt

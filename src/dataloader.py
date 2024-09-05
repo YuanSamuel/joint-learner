@@ -7,33 +7,32 @@ from torch.utils.data import Dataset, DataLoader
 from data_engineering.benchmark import BenchmarkTrace
 from collections import namedtuple
 
+CACHE_IP_TO_IDX = {}
+def get_cache_ip_idx(ip):
+    if ip not in CACHE_IP_TO_IDX:
+        CACHE_IP_TO_IDX[ip] = len(CACHE_IP_TO_IDX)
+    return CACHE_IP_TO_IDX[ip]
+
 
 def get_cache_data(cache_data_path, ip_history_window):
     with open(cache_data_path, mode="r") as file:
         csv_reader = csv.DictReader(file)
         data = []
         history_ips = deque()
-        seen_ips = set()
 
         for row in csv_reader:
-            ip = int(row["ip"])
-            current_recent_ips = [x for x in history_ips if x != ip]
+            ip_idx = get_cache_ip_idx(int(row["ip"]))
+
+            current_recent_ips = [x for x in history_ips]
 
             while len(current_recent_ips) < ip_history_window:
                 current_recent_ips.append(-1)
 
-            data.append((ip, current_recent_ips[:ip_history_window], row["decision"]))
-
-            if ip in seen_ips:
-                history_ips = deque([x for x in history_ips if x != ip])
-                seen_ips.remove(ip)
+            data.append((ip_idx, current_recent_ips[-ip_history_window:], row["decision"]))
 
             if len(history_ips) >= ip_history_window * 2:
-                removed_ip = history_ips.popleft()
-                seen_ips.remove(removed_ip)
-
-            history_ips.append(ip)
-            seen_ips.add(ip)
+                history_ips.popleft()
+            history_ips.append(ip_idx)
 
         return data
 
@@ -65,7 +64,7 @@ def cache_collate_fn(batch):
 
 
 def get_cache_dataloader(
-    cache_data_path, ip_history_window, batch_size, train_pct=0.3, valid_pct=0.1
+    cache_data_path, ip_history_window, batch_size, train_pct=0.6, valid_pct=0.2
 ):
     data = get_cache_data(cache_data_path, ip_history_window)
 
@@ -165,7 +164,7 @@ class ContrastiveDataset(Dataset):
             seen_ips = set()
 
             for row in csv_reader:
-                ip = int(row["ip"])
+                ip = get_cache_ip_idx(int(row["ip"]))
                 current_recent_ips = [x for x in history_ips if x != ip]
 
                 while len(current_recent_ips) < self.window:

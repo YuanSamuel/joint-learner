@@ -21,6 +21,8 @@ def process_csv(input_file, output_file, cache_size):
         writer.writeheader()
 
         for row, decision in zip(rows, decisions):
+            if decision == "In Cache":
+                continue
             row["decision"] = decision
             writer.writerow(row)
 
