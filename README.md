@@ -1,5 +1,15 @@
 # joint-learner
 
+
+Modern computing environments are characterized by a wide variety of applications, each with unique access patterns and  requirements. Heuristics and static solutions often operate inefficiently on this diverse ranperformancege of workloads, leading to the development of many learned components in OS which can better adapt to unique applications.
+
+Most ML-based solutions in the OS focus around optimizing individual components, where each component implements a separate model trained on its own featureset. However, prior insight points to the idea that an ML solution beyond a single component can give better decisions.
+
+Almost all components in the OS are interdependent in one way or another, where decisions from one component can affect the state or performance of another. If informed about the actions of an interdependent component, a model could then make better, adaptive decisions.
+
+This project aims to create a joint learner solution that facilitates a holistic understanding of relationships between OS components to make more informed decisions that consider the effect of one mechanism on another.
+
+
 ## Instructions for Training Models
 
 
