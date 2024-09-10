@@ -289,7 +289,7 @@ void CACHE::update_replacement_state(uint32_t triggering_cpu, uint32_t set, uint
             update_addr_history_lru(sampler_set, addr_history[sampler_set][sampler_tag].lru);
         }
 
-        cout << "Sampled: " << sampled << " Inced: " << inced << " Deced: " << deced << " new: " << newval << endl;
+        // cout << "Sampled: " << sampled << " Inced: " << inced << " Deced: " << deced << " new: " << newval << endl;
 
         // Get Hawkeye's prediction for this line
         Prediction new_prediction = demand_predictor->get_prediction(ip);

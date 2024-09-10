@@ -22,7 +22,7 @@ def train(args):
 
     if args.encoder_name != "none":
         contrastive_encoder = ContrastiveEncoder(
-            args.ip_history_window + 1, 512, args.hidden_dim
+            args.ip_history_window + 1, args.hidden_dim, args.hidden_dim
         )
         contrastive_encoder.load_state_dict(
             torch.load(f"./data/model/{args.encoder_name}.pth")

@@ -5,7 +5,7 @@ from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
 from models.contrastive_encoder import ContrastiveEncoder
 from models.voyager import VoyagerEncoder
-from dataloader import get_contrastive_dataloader
+from contrastive_dataloader import get_contrastive_dataloader
 from utils import parse_args, load_config
 from loss_fns.contrastive import ContrastiveLoss
 
@@ -15,19 +15,19 @@ def train(args):
     config = load_config(args.config)
 
     print("Init Dataloader")
-    dataloader, num_pcs, num_pages = get_contrastive_dataloader(
+    dataloader, valid_dataloader, _, num_pcs, num_pages = get_contrastive_dataloader(
         args.cache_data_path,
         args.ip_history_window,
         args.prefetch_data_path,
         config,
         args.batch_size,
-        0,
-        0.3
     )
 
-    voyager_encoder = VoyagerEncoder(config, num_pcs, num_pages)
+    voyager_encoder = ContrastiveEncoder(
+        config.sequence_length * 3, args.hidden_dim, args.hidden_dim
+    )
     cache_encoder = ContrastiveEncoder(
-        args.ip_history_window + 1, config.contrastive_hidden_dim, config.contrastive_size
+        args.ip_history_window + 1, args.hidden_dim, args.hidden_dim
     )
 
     criterion = ContrastiveLoss()
@@ -43,18 +43,18 @@ def train(args):
     print(f"Using device: {device}")
 
     print("Begin Training")
-    voyager_encoder.train()
-    cache_encoder.train()
 
-    # Training loop
     num_epochs = args.num_epochs
     best_loss = float("inf")
     for epoch in range(num_epochs):
+        # Training loop
+        voyager_encoder.train()
+        cache_encoder.train()
+
         start_time = time.time()
         total_loss = 0
         for batch, data in enumerate(dataloader):
             prefetch_input, cache_input, labels = data
-            # print(prefetch_input)
             prefetch_input, cache_input, labels = (
                 prefetch_input.to(device),
                 cache_input.to(device),
@@ -79,15 +79,37 @@ def train(args):
                 ms_per_batch = (time.time() - start_time) * 1000 / batch
                 print(
                     f"epoch {epoch+1} | batch {batch}/{len(dataloader)} batches"
-                    + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f} | most recent loss {loss:.4f}"
+                    + f" | ms/batch {ms_per_batch} | loss {total_loss:.4f} | avg loss {total_loss / batch:.4f}"
                 )
         # scheduler.step()
 
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss:.4f}")
         print(f"------------------------------")
 
-        if total_loss < best_loss:
-            best_loss = total_loss
+        # Validation loop
+        voyager_encoder.eval()
+        cache_encoder.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for batch, data in enumerate(valid_dataloader):
+                prefetch_input, cache_input, labels = data
+                prefetch_input, cache_input, labels = (
+                    prefetch_input.to(device),
+                    cache_input.to(device),
+                    labels.to(device),
+                )
+
+                prefetch_output = voyager_encoder(prefetch_input)
+                cache_output = cache_encoder(cache_input)
+
+                loss = criterion(prefetch_output, cache_output, labels)
+                val_loss += loss.item()
+
+        print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss:.4f}")
+        print(f"------------------------------")
+
+        if val_loss < best_loss:
+            best_loss = val_loss
             torch.save(voyager_encoder.state_dict(), f"./data/model/{args.model_name}_voyager.pth")
             torch.save(cache_encoder.state_dict(), f"./data/model/{args.model_name}_cache.pth")
             best_voyager = voyager_encoder
