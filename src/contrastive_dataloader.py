@@ -159,30 +159,6 @@ class ContrastiveData():
 
                 self.data.append((self.cache_timestamps[timestamp], pos_prefetch_idx, neg_idx))
 
-    # def make_pairs(self):
-    #     self.data = []
-    #     self.timestamps = list(self.cache_timestamps.keys())
-    #     for idx, prefetch_item in enumerate(self.prefetch_info.data):
-    #         if idx == 0:
-    #             continue
-    #         timestamp = prefetch_item[5]
-    #         found_cache = False
-    #         for i in range(timestamp - 20, timestamp + 20):
-    #             if i in self.cache_timestamps:
-    #                 pos_cache_idx = self.cache_timestamps[i]
-    #                 found_cache = True
-    #                 break
-
-    #         if found_cache:
-    #             neg_key = random.choice(self.timestamps)
-
-    #             while abs(neg_key - timestamp) < 20:
-    #                 neg_key = random.choice(self.timestamps)
-                
-    #             neg_idx = self.cache_timestamps[neg_key]
-    #             neg_item = self.cache_data[neg_idx]
-    #             self.data.append((idx, pos_cache_idx, neg_item))
-
 
 class ContrastiveDataset(Dataset):
     def __init__(

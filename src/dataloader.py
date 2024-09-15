@@ -75,7 +75,7 @@ def get_cache_dataloader(
         batch_size=batch_size,
         shuffle=True,
         collate_fn=cache_collate_fn,
-        num_workers=4,
+        num_workers=8,
         pin_memory=True if torch.cuda.is_available() else False,
     )
 
@@ -85,7 +85,8 @@ def get_cache_dataloader(
         batch_size=batch_size,
         shuffle=True,
         collate_fn=cache_collate_fn,
-        num_workers=4,
+        num_workers=8,
+        pin_memory=True if torch.cuda.is_available() else False,
     )
 
     eval_dataset = CacheAccessDataset(data, ip_history_window, eval_start, len(data))
@@ -94,7 +95,7 @@ def get_cache_dataloader(
         batch_size=batch_size,
         shuffle=True,
         collate_fn=cache_collate_fn,
-        num_workers=4,
+        num_workers=8,
     )
 
     return train_dataloader, valid_dataloader, eval_dataloader

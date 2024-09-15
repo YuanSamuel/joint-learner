@@ -53,7 +53,7 @@ The number of warmup and simulation instructions given will be the number of ins
 In order to add labels to cache instructions for whether an instruction would be cached under Belady's OPT, run the `add_labels.py` script from the root directory, e.g.
 
 ```
-python src/data_engineering/add_labels.py --input ~/path/to/simtraces/cache_accesses_sphinx.csv --output ~/path/to/output --cache_size 2048 * 2
+python src/data_engineering/add_labels.py --input ~/path/to/simtraces/cache_accesses_sphinx.csv --output ~/path/to/output.csv --cache_size 4096
 ```
 
 The size of the cache is variable, and ChampSim's cache size is configurable in the `champsim_config.json`. The default is 2048 * 16, or the number of sets * number of ways in the LLC cache.

@@ -3,7 +3,7 @@ import torch
 
 from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
-from models.mlp_replacement import CacheReplacementNN
+from models.mlp_replacement import CacheReplacementNN2, CacheReplacementNN
 from dataloader import get_cache_dataloader
 from utils import parse_args
 from models.contrastive_encoder import ContrastiveEncoder

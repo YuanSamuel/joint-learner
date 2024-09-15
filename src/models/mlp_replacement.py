@@ -1,7 +1,39 @@
+import torch
+
 from torch import nn
 import numpy as np
 
 from models.contrastive_encoder import ContrastiveEncoder
+
+# Concat embedder features
+class CacheReplacementNN2(nn.Module):
+    def __init__(self, num_features, hidden_dim, contrastive_encoder=None):
+        super(CacheReplacementNN2, self).__init__()
+        if contrastive_encoder is not None:
+            for param in contrastive_encoder.parameters():
+                param.requires_grad = False
+
+            self.contrastive_encoder = contrastive_encoder
+        else:
+            self.contrastive_encoder = ContrastiveEncoder(
+                num_features, hidden_dim, hidden_dim
+            )
+
+        self.network = nn.Sequential(
+            nn.Linear(num_features + hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Linear(hidden_dim, 1),
+        )
+
+        for layer in self.network:
+            if isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight)
+
+    def forward(self, x):
+        input_embeddings = self.contrastive_encoder(x)
+        x = torch.cat((x, input_embeddings), dim=1)
+        return self.network(x)
 
 
 class CacheReplacementNN(nn.Module):

@@ -25,6 +25,8 @@ def process_csv(input_file, output_file, cache_size):
                 continue
             row["decision"] = decision
             writer.writerow(row)
+    
+    print("Finished writing to output file")
 
 def parse_args():
     parser = argparse.ArgumentParser()
