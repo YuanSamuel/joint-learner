@@ -3,11 +3,13 @@ import torch
 
 from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
-from models.mlp_replacement import CacheReplacementNN2, CacheReplacementNN
+from models.mlp_replacement import CacheReplacementNN, CacheReplacementNNTransformer
 from dataloader import get_cache_dataloader
 from utils import parse_args, load_dataset, has_dataset
 from models.contrastive_encoder import ContrastiveEncoder
 from data_engineering.count_labels import count_labels
+
+import dataloader as dl
 
 
 def train(args):
@@ -33,6 +35,10 @@ def train(args):
             num_features=args.ip_history_window + 1,
             hidden_dim=args.hidden_dim,
             contrastive_encoder=contrastive_encoder,
+        )
+    elif args.use_transformer:
+        model = CacheReplacementNNTransformer(
+            num_features=len(dl.CACHE_IP_TO_IDX) + 1, hidden_dim=args.hidden_dim
         )
     else:
         model = CacheReplacementNN(
@@ -62,6 +68,11 @@ def train(args):
         train_zeroes = 0
         for batch, data in enumerate(dataloader):
             inputs, labels = data
+
+            # check if any input is greater than len(dl.CACHE_IP_TO_IDX)
+            if inputs.min() < 0 or inputs.max() >= len(dl.CACHE_IP_TO_IDX):
+                print(f"Input exceeds cache size: {inputs.max()} {inputs.min()}")
+
             inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
@@ -129,7 +140,7 @@ def trace_model(model, args):
     model.eval()
     model = model.to("cpu")
     example_input = torch.randint(
-        0, 1 << 12, (args.ip_history_window + 1,), dtype=torch.float32
+        0, 100, (args.ip_history_window + 1,), dtype=torch.float32
     )
     traced_model = torch.jit.trace(model, example_input)
     traced_model.save(f"./data/model/{args.model_name}_traced.pt")

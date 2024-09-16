@@ -6,6 +6,7 @@ from dataloader import PrefetchInfo, get_cache_ip_idx
 from torch.utils.data import Dataset, DataLoader
 from utils import has_dataset, load_dataset, save_dataset, split_dataset
 
+import dataloader as dl
 
 class ContrastiveData:
     def __init__(
@@ -176,6 +177,8 @@ class ContrastiveDataset(Dataset):
         for key, value in vars(contrastive_data).items():
             setattr(self, key, value)
 
+        self.cache_ip_to_idx = dl.CACHE_IP_TO_IDX
+
     def get_prefetch_item(self, idx):
         hists = []
         cur_pc = self.prefetch_info.data[idx, 1].item()
@@ -241,6 +244,7 @@ def get_contrastive_dataloader(
     name=None,
 ):
     if name is not None and has_dataset(name):
+        print(f"Loading dataset {name} from disk")
         dataset = load_dataset(name)
     else:
         contrastive_data = ContrastiveData(
@@ -250,6 +254,10 @@ def get_contrastive_dataloader(
 
         if name is not None:
             save_dataset(name, contrastive_data)
+
+    print(f"Dataset size: {len(dataset)}")
+
+    dl.CACHE_IP_TO_IDX = dataset.cache_ip_to_idx
 
     train_dataset, valid_dataset, eval_dataset = split_dataset(
         dataset, train_pct, valid_pct

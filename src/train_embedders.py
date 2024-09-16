@@ -21,6 +21,7 @@ def train(args):
         args.prefetch_data_path,
         config,
         args.batch_size,
+        name=args.dataset,
     )
 
     voyager_encoder = ContrastiveEncoder(
