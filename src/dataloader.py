@@ -2,10 +2,13 @@ import csv
 import lzma
 import torch
 from collections import deque
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 from data_engineering.benchmark import BenchmarkTrace
+from utils import has_dataset, save_dataset, load_dataset, split_dataset
 
 CACHE_IP_TO_IDX = {}
+
+
 def get_cache_ip_idx(ip):
     if ip not in CACHE_IP_TO_IDX:
         CACHE_IP_TO_IDX[ip] = len(CACHE_IP_TO_IDX)
@@ -26,7 +29,9 @@ def get_cache_data(cache_data_path, ip_history_window):
             while len(current_recent_ips) < ip_history_window:
                 current_recent_ips.append(-1)
 
-            data.append((ip_idx, current_recent_ips[-ip_history_window:], row["decision"]))
+            data.append(
+                (ip_idx, current_recent_ips[-ip_history_window:], row["decision"])
+            )
 
             if len(history_ips) >= ip_history_window * 2:
                 history_ips.popleft()
@@ -36,10 +41,10 @@ def get_cache_data(cache_data_path, ip_history_window):
 
 
 class CacheAccessDataset(Dataset):
-    def __init__(self, data, ip_history_window, start, end):
+    def __init__(self, data, ip_history_window):
         self.window = ip_history_window
 
-        self.data = data[start:end]
+        self.data = data
 
     def __len__(self):
         return len(self.data)
@@ -62,14 +67,27 @@ def cache_collate_fn(batch):
 
 
 def get_cache_dataloader(
-    cache_data_path, ip_history_window, batch_size, train_pct=0.6, valid_pct=0.2
+    cache_data_path,
+    ip_history_window,
+    batch_size,
+    train_pct=0.6,
+    valid_pct=0.2,
+    name=None,
 ):
-    data = get_cache_data(cache_data_path, ip_history_window)
+    if name is not None and has_dataset(name):
+        dataset = load_dataset(name)
 
-    valid_start = int(len(data) * train_pct)
-    eval_start = int(len(data) * (train_pct + valid_pct))
+    else:
+        data = get_cache_data(cache_data_path, ip_history_window)
+        dataset = CacheAccessDataset(data, ip_history_window)
 
-    train_dataset = CacheAccessDataset(data, ip_history_window, 0, valid_start)
+        if name is not None:
+            save_dataset(name, dataset)
+
+    train_dataset, valid_dataset, eval_dataset = split_dataset(
+        dataset, train_pct, valid_pct
+    )
+
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -79,7 +97,6 @@ def get_cache_dataloader(
         pin_memory=True if torch.cuda.is_available() else False,
     )
 
-    valid_dataset = CacheAccessDataset(data, ip_history_window, valid_start, eval_start)
     valid_dataloader = DataLoader(
         valid_dataset,
         batch_size=batch_size,
@@ -89,7 +106,6 @@ def get_cache_dataloader(
         pin_memory=True if torch.cuda.is_available() else False,
     )
 
-    eval_dataset = CacheAccessDataset(data, ip_history_window, eval_start, len(data))
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=batch_size,
@@ -131,5 +147,3 @@ class PrefetchInfo:
         self.cache_lines_idx = {}
         self.orig_addr = [0]
         self.data = [[0, 0, 0, 0, 0, 0]]
-
-

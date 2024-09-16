@@ -3,41 +3,41 @@ import torch
 
 from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
-from models.mlp_replacement import CacheReplacementNN2, CacheReplacementNN
-from dataloader import get_cache_dataloader
-from utils import parse_args, load_dataset, has_dataset
+from models.mlp_replacement import CacheReplacementNN
+from joint_dataloader import get_joint_dataloader
+from utils import parse_args, load_config
 from models.contrastive_encoder import ContrastiveEncoder
 from data_engineering.count_labels import count_labels
 
 
 def train(args):
     print(f"------------------------------")
+    config = load_config(args.config)
     print(f"Config: dim {args.hidden_dim} window {args.ip_history_window}")
     print("Init Dataloader")
 
-    dataloader, valid_dataloader, _ = get_cache_dataloader(
-        args.cache_data_path, args.ip_history_window, args.batch_size, name=args.dataset
-    )
+    if args.dataset == "none":
+        dataloader, valid_dataloader, _, num_pcs, num_pages = get_joint_dataloader(
+            args.cache_data_path,
+            args.ip_history_window,
+            args.prefetch_data_path,
+            config,
+            args.batch_size,
+        )
+    else:
+        pass
 
     pos_count, neg_count = count_labels(dataloader)
     print(f"Positive count: {pos_count}, Negative count: {neg_count}")
 
-    if args.encoder_name != "none":
-        contrastive_encoder = ContrastiveEncoder(
-            args.ip_history_window + 1, args.hidden_dim, args.hidden_dim
-        )
-        contrastive_encoder.load_state_dict(
-            torch.load(f"./data/model/{args.encoder_name}.pth")
-        )
-        model = CacheReplacementNN(
-            num_features=args.ip_history_window + 1,
-            hidden_dim=args.hidden_dim,
-            contrastive_encoder=contrastive_encoder,
-        )
-    else:
-        model = CacheReplacementNN(
-            num_features=args.ip_history_window + 1, hidden_dim=args.hidden_dim
-        )
+
+    model = CacheReplacementNN(
+        num_features=args.ip_history_window + 1, hidden_dim=args.hidden_dim
+    )
+    # Features: ip history + prefetch history + current ip
+    # model = CacheReplacementNN(
+    #     num_features=args.ip_history_window + config.sequence_length * 3 + 1, hidden_dim=args.hidden_dim
+    # )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)

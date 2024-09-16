@@ -4,9 +4,10 @@ import torch
 from collections import deque
 from dataloader import PrefetchInfo, get_cache_ip_idx
 from torch.utils.data import Dataset, DataLoader
+from utils import has_dataset, load_dataset, save_dataset, split_dataset
 
 
-class ContrastiveData():
+class ContrastiveData:
     def __init__(
         self,
         cache_data_path,
@@ -41,11 +42,13 @@ class ContrastiveData():
 
                 self.cache_timestamps[int(row["timestamp"])] = len(self.cache_data)
 
-                self.cache_data.append((ip_idx, current_recent_ips[-self.window:], row["decision"]))
+                self.cache_data.append(
+                    (ip_idx, current_recent_ips[-self.window :], row["decision"])
+                )
 
                 if len(history_ips) >= self.window * 2:
                     history_ips.popleft()
-                    
+
                 history_ips.append(ip_idx)
 
     def process_prefetch_data(self, prefetch_data_path):
@@ -110,7 +113,9 @@ class ContrastiveData():
                 # Include the instruction ID for generating the prefetch file for running
                 # in the ML-DPC modified version of ChampSim.
                 # See github.com/Quangmire/ChampSim
-                self.prefetch_timestamps[int(row["timestamp"])] = len(self.prefetch_info.data)
+                self.prefetch_timestamps[int(row["timestamp"])] = len(
+                    self.prefetch_info.data
+                )
                 self.prefetch_info.data.append(
                     [
                         idx,
@@ -154,25 +159,22 @@ class ContrastiveData():
 
                 while abs(neg_key - timestamp) < 20:
                     neg_key = random.choice(prefetch_timestamps_list)
-                
+
                 neg_idx = self.prefetch_timestamps[neg_key]
 
-                self.data.append((self.cache_timestamps[timestamp], pos_prefetch_idx, neg_idx))
+                self.data.append(
+                    (self.cache_timestamps[timestamp], pos_prefetch_idx, neg_idx)
+                )
 
 
 class ContrastiveDataset(Dataset):
     def __init__(
         self,
         contrastive_data,
-        start_pct,
-        end_pct,
     ):
+        super().__init__()
         for key, value in vars(contrastive_data).items():
             setattr(self, key, value)
-
-        self.data = self.data[
-            int(len(self.data) * start_pct) : int(len(self.data) * end_pct)
-        ]
 
     def get_prefetch_item(self, idx):
         hists = []
@@ -198,15 +200,18 @@ class ContrastiveDataset(Dataset):
 
     def __getitem__(self, idx):
         if idx % 2 == 0:
+            # Positive sample
             get_idx = idx // 2
             prefetch_item = self.get_prefetch_item(self.data[get_idx][1])
             cache_item = self.cache_data[self.data[get_idx][0]]
         else:
+            # Negative sample
             get_idx = idx // 2
-            prefetch_item = self.get_prefetch_item(self.data[get_idx][1])
+            prefetch_item = self.get_prefetch_item(self.data[get_idx][2])
             cache_item = self.cache_data[self.data[get_idx][0]]
 
         return prefetch_item, cache_item[0:2], 1 if idx % 2 == 0 else 0
+
 
 def contrastive_collate_fn(batch):
     # Unzip the batch into separate lists for prefetch items and cache items
@@ -233,16 +238,23 @@ def get_contrastive_dataloader(
     batch_size,
     train_pct=0.6,
     valid_pct=0.2,
+    name=None,
 ):
+    if name is not None and has_dataset(name):
+        dataset = load_dataset(name)
+    else:
+        contrastive_data = ContrastiveData(
+            cache_data_path, ip_history_window, prefetch_data_path, config
+        )
+        dataset = ContrastiveDataset(contrastive_data)
 
-    valid_start = train_pct
-    eval_start = train_pct + valid_pct
+        if name is not None:
+            save_dataset(name, contrastive_data)
 
-    contrastive_data = ContrastiveData(cache_data_path, ip_history_window, prefetch_data_path, config)
-
-    train_dataset = ContrastiveDataset(
-        contrastive_data, 0, valid_start
+    train_dataset, valid_dataset, eval_dataset = split_dataset(
+        dataset, train_pct, valid_pct
     )
+
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -252,9 +264,6 @@ def get_contrastive_dataloader(
         pin_memory=True if torch.cuda.is_available() else False,
     )
 
-    valid_dataset = ContrastiveDataset(
-        contrastive_data, valid_start, eval_start
-    )
     valid_dataloader = DataLoader(
         valid_dataset,
         batch_size=batch_size,
@@ -263,9 +272,6 @@ def get_contrastive_dataloader(
         num_workers=4,
     )
 
-    eval_dataset = ContrastiveDataset(
-        contrastive_data, eval_start, 1
-    )
     eval_dataloader = DataLoader(
         eval_dataset,
         batch_size=batch_size,

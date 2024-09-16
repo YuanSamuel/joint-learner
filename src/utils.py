@@ -1,7 +1,11 @@
 import argparse
+import os
+import torch
+import yaml
+from torch.utils.data import Subset
+
 
 from types import SimpleNamespace
-import yaml
 
 
 def load_config(config_path, debug=False):
@@ -38,6 +42,42 @@ def load_config(config_path, debug=False):
     return config
 
 
+def save_dataset(name, dataset):
+    """
+    Saves the dataset to disk
+    """
+    torch.save(dataset, f"./data/datasets/{name}.pt")
+
+
+def has_dataset(name):
+    """
+    Checks if the dataset exists on disk
+    """
+    return os.path.exists(f"./data/datasets/{name}.pt")
+
+
+def load_dataset(name):
+    """
+    Loads the dataset from disk
+    """
+    return torch.load(f"./data/datasets/{name}.pt")
+
+
+def split_dataset(dataset, train_pct=0.6, valid_pct=0.2):
+    valid_start = int(len(dataset) * train_pct)
+    eval_start = int(len(dataset) * (train_pct + valid_pct))
+
+    train_indices = list(range(0, valid_start))
+    valid_indices = list(range(valid_start, eval_start))
+    eval_indices = list(range(eval_start, len(dataset)))
+
+    train_dataset = Subset(dataset, train_indices)
+    valid_dataset = Subset(dataset, valid_indices)
+    eval_dataset = Subset(dataset, eval_indices)
+
+    return train_dataset, valid_dataset, eval_dataset
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -56,6 +96,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--model_name", type=str, default="cache_repl_bce")
     parser.add_argument("--encoder_name", type=str, default="none")
+    parser.add_argument("--dataset", type=str, default=None)
 
     args = parser.parse_args()
     return args

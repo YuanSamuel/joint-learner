@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Replace 'your_file.csv' with the path to your CSV file
-csv_file = 'data/mcf_large_labeled.csv'
+csv_file = 'data/soplex_large_labeled.csv'
 
 # Read the CSV file into a DataFrame
 df = pd.read_csv(csv_file)
