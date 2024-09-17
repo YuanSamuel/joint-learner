@@ -39,7 +39,7 @@ class ContrastiveData:
                 current_recent_ips = [x for x in history_ips]
 
                 while len(current_recent_ips) < self.window:
-                    current_recent_ips.append(-1)
+                    current_recent_ips.append(get_cache_ip_idx(-1))
 
                 self.cache_timestamps[int(row["timestamp"])] = len(self.cache_data)
 

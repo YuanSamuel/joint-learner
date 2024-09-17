@@ -3,3 +3,4 @@ data/
 collector_output/
 __pycache__/
 nohup.out
+output.log

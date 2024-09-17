@@ -3,12 +3,17 @@ import torch
 
 from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
-from models.mlp_replacement import CacheReplacementNN, CacheReplacementNNTransformer
+from models.mlp_replacement import (
+    CacheReplacementNN,
+    CacheReplacementNNTransformer,
+    CacheReplacementNNJointTransformer,
+)
 from joint_dataloader import get_joint_dataloader
 from utils import parse_args, load_config
 from models.contrastive_encoder import ContrastiveEncoder
 from data_engineering.count_labels import count_labels
 import dataloader as dl
+
 
 def train(args):
     print(f"------------------------------")
@@ -25,16 +30,18 @@ def train(args):
         name=args.dataset,
     )
 
-    pos_count, neg_count = count_labels(dataloader)
-    print(f"Positive count: {pos_count}, Negative count: {neg_count}")
+    # pos_count, neg_count = count_labels(dataloader)
+    print(f"Num Prefetch PCs: {num_pcs}, Num Pages: {num_pages}")
 
     if args.use_transformer:
-        model = CacheReplacementNNTransformer(
-            num_features=len(dl.CACHE_IP_TO_IDX) + 1, hidden_dim=args.hidden_dim
+        feature_sizes = [len(dl.CACHE_IP_TO_IDX) + 1, num_pcs + 1, num_pages + 1, 65]
+        model = CacheReplacementNNJointTransformer(
+            num_features=feature_sizes, hidden_dim=args.hidden_dim
         )
     else:
         model = CacheReplacementNN(
-            num_features=args.ip_history_window + config.sequence_length * 3 + 1, hidden_dim=args.hidden_dim
+            num_features=args.ip_history_window + config.sequence_length * 3 + 1,
+            hidden_dim=args.hidden_dim,
         )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -59,10 +66,20 @@ def train(args):
         total_correct = 0
         train_zeroes = 0
         for batch, data in enumerate(dataloader):
-            inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
+            cache_features, prefetch_pcs, prefetch_pages, prefetch_offsets, labels = (
+                data
+            )
+            cache_features, prefetch_pcs, prefetch_pages, prefetch_offsets, labels = (
+                cache_features.to(device),
+                prefetch_pcs.to(device),
+                prefetch_pages.to(device),
+                prefetch_offsets.to(device),
+                labels.to(device),
+            )
             optimizer.zero_grad()
-            outputs = model(inputs)
+            outputs = model(
+                cache_features, prefetch_pcs, prefetch_pages, prefetch_offsets
+            )
             loss = criterion(outputs, labels)
 
             loss.backward()
@@ -93,9 +110,31 @@ def train(args):
         valid_zeroes = 0
         with torch.no_grad():
             for batch, data in enumerate(valid_dataloader):
-                inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
-                outputs = model(inputs)
+                (
+                    cache_features,
+                    prefetch_pcs,
+                    prefetch_pages,
+                    prefetch_offsets,
+                    labels,
+                ) = data
+
+                (
+                    cache_features,
+                    prefetch_pcs,
+                    prefetch_pages,
+                    prefetch_offsets,
+                    labels,
+                ) = (
+                    cache_features.to(device),
+                    prefetch_pcs.to(device),
+                    prefetch_pages.to(device),
+                    prefetch_offsets.to(device),
+                    labels.to(device),
+                )
+
+                outputs = model(
+                    cache_features, prefetch_pcs, prefetch_pages, prefetch_offsets
+                )
                 loss = criterion(outputs, labels)
                 valid_loss += loss.item()
                 valid_correct += count_correct(outputs, labels)

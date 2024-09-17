@@ -38,7 +38,7 @@ class JointData:
                 current_recent_ips = [x for x in history_ips]
 
                 while len(current_recent_ips) < self.window:
-                    current_recent_ips.append(-1)
+                    current_recent_ips.append(get_cache_ip_idx(-1))
 
                 self.cache_timestamps[int(row["timestamp"])] = len(self.cache_data)
 
@@ -208,12 +208,18 @@ def joint_collate_fn(batch):
     cache_features_tensor = torch.stack(combined_features, dim=0)
 
     labels_tensor = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
-    prefetch_tensor = torch.stack(prefetch_items, dim=0)
+    prefetch_tensor = torch.stack(prefetch_items, dim=0).long()
 
-    combined_tensor = torch.cat((prefetch_tensor, cache_features_tensor), dim=1)
+    # combined_tensor = torch.cat((prefetch_tensor, cache_features_tensor), dim=1)
+
+    # Assuming the prefetch tensor structure is [pc_hist, page_hist, offset_hist]
+    sequence_length = prefetch_tensor.shape[1] // 3
+    prefetch_pc_tensor = prefetch_tensor[:, :sequence_length]
+    prefetch_page_tensor = prefetch_tensor[:, sequence_length:2*sequence_length]
+    prefetch_offset_tensor = prefetch_tensor[:, 2*sequence_length:]
 
     # Return a tuple of all the processed items
-    return cache_features_tensor, labels_tensor
+    return cache_features_tensor, prefetch_pc_tensor, prefetch_page_tensor, prefetch_offset_tensor, labels_tensor
 
 
 def get_joint_dataloader(
@@ -276,6 +282,6 @@ def get_joint_dataloader(
         train_dataloader,
         valid_dataloader,
         eval_dataloader,
-        len(joint_data.prefetch_info.pc_mapping),
-        len(joint_data.prefetch_info.page_mapping),
+        len(dataset.prefetch_info.pc_mapping),
+        len(dataset.prefetch_info.page_mapping),
     )
