@@ -1,10 +1,11 @@
 import argparse
 import os
+import sys
 import torch
 import yaml
 from torch.utils.data import Subset
 
-
+from tqdm import tqdm as original_tqdm
 from types import SimpleNamespace
 
 
@@ -77,6 +78,14 @@ def split_dataset(dataset, train_pct=0.6, valid_pct=0.2):
 
     return train_dataset, valid_dataset, eval_dataset
 
+
+# Monkey-patch tqdm to disable globally if not in a terminal
+def tqdm(*args, **kwargs):
+    if not sys.stdout.isatty():
+        kwargs["disable"] = True
+    return original_tqdm(*args, **kwargs)
+
+tqdm.write = original_tqdm.write
 
 def parse_args():
     parser = argparse.ArgumentParser()

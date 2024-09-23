@@ -4,9 +4,10 @@ import torch
 from collections import deque
 from dataloader import PrefetchInfo, get_cache_ip_idx
 from torch.utils.data import Dataset, DataLoader
-from utils import has_dataset, load_dataset, save_dataset, split_dataset
+from utils import has_dataset, load_dataset, save_dataset, split_dataset, tqdm
 
 import dataloader as dl
+
 
 class ContrastiveData:
     def __init__(
@@ -20,11 +21,8 @@ class ContrastiveData:
         self.config = config
         self.prefetch_info = PrefetchInfo(config)
 
-        print("Processing Cache Data")
         self.process_cache_data(cache_data_path)
-        print("Processing Prefetch Data")
         self.process_prefetch_data(prefetch_data_path)
-        print("Making Pairs")
         self.make_pairs()
 
     def process_cache_data(self, cache_data_path):
@@ -34,7 +32,7 @@ class ContrastiveData:
             self.cache_timestamps = {}
             history_ips = deque()
 
-            for row in csv_reader:
+            for row in tqdm(csv_reader, desc="Processing Cache Data"):
                 ip_idx = get_cache_ip_idx(int(row["ip"]))
                 current_recent_ips = [x for x in history_ips]
 
@@ -56,7 +54,9 @@ class ContrastiveData:
         with open(prefetch_data_path, mode="r") as file:
             self.prefetch_timestamps = {}
             csv_reader = csv.DictReader(file)
-            for idx, row in enumerate(csv_reader):
+            for idx, row in enumerate(
+                tqdm(csv_reader, desc="Processing Prefetch Data")
+            ):
                 addr = int(row["addr"]) >> 6 << 6
                 pc = int(row["ip"])
                 cache_line = addr >> 6
@@ -144,12 +144,15 @@ class ContrastiveData:
         self.data = []
         cache_timestamps_list = list(self.cache_timestamps.keys())
         prefetch_timestamps_list = list(self.prefetch_timestamps.keys())
-        for idx, cache_timestamp in enumerate(cache_timestamps_list):
+        
+        for idx, cache_timestamp in enumerate(
+            tqdm(cache_timestamps_list, desc="Making Pairs")
+        ):
             if idx == 0:
                 continue
             timestamp = cache_timestamp
             found_prefetch = False
-            for i in range(timestamp - 20, timestamp + 20):
+            for i in range(timestamp, timestamp - 10000, -1):
                 if i in self.prefetch_timestamps:
                     pos_prefetch_idx = self.prefetch_timestamps[i]
                     found_prefetch = True
@@ -158,7 +161,7 @@ class ContrastiveData:
             if found_prefetch:
                 neg_key = random.choice(prefetch_timestamps_list)
 
-                while abs(neg_key - timestamp) < 20:
+                while abs(neg_key - timestamp) < 500:
                     neg_key = random.choice(prefetch_timestamps_list)
 
                 neg_idx = self.prefetch_timestamps[neg_key]
@@ -222,15 +225,26 @@ def contrastive_collate_fn(batch):
 
     ips, ip_histories = zip(*cache_items)
     combined_features = [
-        torch.tensor([s] + l, dtype=torch.float32) for s, l in zip(ips, ip_histories)
+        torch.tensor([s] + l, dtype=torch.long) for s, l in zip(ips, ip_histories)
     ]
     cache_features_tensor = torch.stack(combined_features, dim=0)
 
     labels_tensor = torch.tensor(labels, dtype=torch.float32)
-    prefetch_tensor = torch.stack(prefetch_items, dim=0)
+    prefetch_tensor = torch.stack(prefetch_items, dim=0).long()
+
+    sequence_length = prefetch_tensor.shape[1] // 3
+    prefetch_pc_tensor = prefetch_tensor[:, :sequence_length]
+    prefetch_page_tensor = prefetch_tensor[:, sequence_length : 2 * sequence_length]
+    prefetch_offset_tensor = prefetch_tensor[:, 2 * sequence_length :]
 
     # Return a tuple of all the processed items
-    return prefetch_tensor, cache_features_tensor, labels_tensor
+    return (
+        cache_features_tensor,
+        prefetch_pc_tensor,
+        prefetch_page_tensor,
+        prefetch_offset_tensor,
+        labels_tensor,
+    )
 
 
 def get_contrastive_dataloader(
@@ -253,7 +267,7 @@ def get_contrastive_dataloader(
         dataset = ContrastiveDataset(contrastive_data)
 
         if name is not None:
-            save_dataset(name, contrastive_data)
+            save_dataset(name, dataset)
 
     print(f"Dataset size: {len(dataset)}")
 
@@ -268,7 +282,7 @@ def get_contrastive_dataloader(
         batch_size=batch_size,
         shuffle=True,
         collate_fn=contrastive_collate_fn,
-        num_workers=4,
+        num_workers=8,
         pin_memory=True if torch.cuda.is_available() else False,
     )
 
@@ -277,7 +291,8 @@ def get_contrastive_dataloader(
         batch_size=batch_size,
         shuffle=True,
         collate_fn=contrastive_collate_fn,
-        num_workers=4,
+        num_workers=8,
+        pin_memory=True if torch.cuda.is_available() else False,
     )
 
     eval_dataloader = DataLoader(
@@ -285,13 +300,13 @@ def get_contrastive_dataloader(
         batch_size=batch_size,
         shuffle=True,
         collate_fn=contrastive_collate_fn,
-        num_workers=4,
+        num_workers=8,
     )
 
     return (
         train_dataloader,
         valid_dataloader,
         eval_dataloader,
-        len(contrastive_data.prefetch_info.pc_mapping),
-        len(contrastive_data.prefetch_info.page_mapping),
+        len(dataset.prefetch_info.pc_mapping),
+        len(dataset.prefetch_info.page_mapping),
     )

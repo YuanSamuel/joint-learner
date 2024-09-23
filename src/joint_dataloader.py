@@ -3,7 +3,8 @@ import torch
 from collections import deque
 from dataloader import PrefetchInfo, get_cache_ip_idx
 from torch.utils.data import Dataset, DataLoader
-from utils import has_dataset, save_dataset, load_dataset, split_dataset
+from utils import has_dataset, save_dataset, load_dataset, split_dataset, tqdm
+
 import dataloader as dl
 
 
@@ -19,11 +20,8 @@ class JointData:
         self.config = config
         self.prefetch_info = PrefetchInfo(config)
 
-        print("Processing Cache Data")
         self.process_cache_data(cache_data_path)
-        print("Processing Prefetch Data")
         self.process_prefetch_data(prefetch_data_path)
-        print("Concat Pairs")
         self.make_pairs()
 
     def process_cache_data(self, cache_data_path):
@@ -33,7 +31,7 @@ class JointData:
             self.cache_timestamps = {}
             history_ips = deque()
 
-            for row in csv_reader:
+            for row in tqdm(csv_reader, desc="Processing Cache Data"):
                 ip_idx = get_cache_ip_idx(int(row["ip"]))
                 current_recent_ips = [x for x in history_ips]
 
@@ -55,7 +53,9 @@ class JointData:
         with open(prefetch_data_path, mode="r") as file:
             self.prefetch_timestamps = {}
             csv_reader = csv.DictReader(file)
-            for idx, row in enumerate(csv_reader):
+            for idx, row in enumerate(
+                tqdm(csv_reader, desc="Processing Prefetch Data")
+            ):
                 addr = int(row["addr"]) >> 6 << 6
                 pc = int(row["ip"])
                 cache_line = addr >> 6
@@ -142,7 +142,10 @@ class JointData:
     def make_pairs(self):
         self.data = []
         cache_timestamps_list = list(self.cache_timestamps.keys())
-        for idx, cache_timestamp in enumerate(cache_timestamps_list):
+
+        for idx, cache_timestamp in enumerate(
+            tqdm(cache_timestamps_list, desc="Making Pairs")
+        ):
             if idx == 0:
                 continue
             timestamp = cache_timestamp
@@ -215,11 +218,17 @@ def joint_collate_fn(batch):
     # Assuming the prefetch tensor structure is [pc_hist, page_hist, offset_hist]
     sequence_length = prefetch_tensor.shape[1] // 3
     prefetch_pc_tensor = prefetch_tensor[:, :sequence_length]
-    prefetch_page_tensor = prefetch_tensor[:, sequence_length:2*sequence_length]
-    prefetch_offset_tensor = prefetch_tensor[:, 2*sequence_length:]
+    prefetch_page_tensor = prefetch_tensor[:, sequence_length : 2 * sequence_length]
+    prefetch_offset_tensor = prefetch_tensor[:, 2 * sequence_length :]
 
     # Return a tuple of all the processed items
-    return cache_features_tensor, prefetch_pc_tensor, prefetch_page_tensor, prefetch_offset_tensor, labels_tensor
+    return (
+        cache_features_tensor,
+        prefetch_pc_tensor,
+        prefetch_page_tensor,
+        prefetch_offset_tensor,
+        labels_tensor,
+    )
 
 
 def get_joint_dataloader(
