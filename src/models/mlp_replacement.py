@@ -10,8 +10,8 @@ class CacheReplacementNN(nn.Module):
     def __init__(self, num_features, hidden_dim, contrastive_encoder=None):
         super(CacheReplacementNN, self).__init__()
         if contrastive_encoder is not None:
-            for param in contrastive_encoder.parameters():
-                param.requires_grad = False
+            # for param in contrastive_encoder.parameters():
+            #     param.requires_grad = False
 
             self.network = nn.Sequential(
                 contrastive_encoder,

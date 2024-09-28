@@ -155,7 +155,7 @@
         "virtual_prefetch": false,
         "prefetch_activate": "LOAD,PREFETCH",
         "prefetcher": "no",
-        "replacement": "glider"
+        "replacement": "lru"
     },
 
     "physical_memory": {

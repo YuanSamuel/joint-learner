@@ -7,6 +7,7 @@ from models.mlp_replacement import CacheReplacementNN, CacheReplacementNNTransfo
 from dataloader import get_cache_dataloader
 from utils import parse_args, load_dataset, has_dataset
 from models.contrastive_encoder import ContrastiveEncoder
+from models.transformer_encoder import TransformerEncoder
 from data_engineering.count_labels import count_labels
 
 import dataloader as dl
@@ -25,14 +26,14 @@ def train(args):
     print(f"Positive count: {pos_count}, Negative count: {neg_count}")
 
     if args.encoder_name != "none":
-        contrastive_encoder = ContrastiveEncoder(
-            args.ip_history_window + 1, args.hidden_dim, args.hidden_dim
+        contrastive_encoder = TransformerEncoder(
+            len(dl.CACHE_IP_TO_IDX) + 1, args.hidden_dim, args.hidden_dim
         )
         contrastive_encoder.load_state_dict(
             torch.load(f"./data/model/{args.encoder_name}.pth")
         )
         model = CacheReplacementNN(
-            num_features=args.ip_history_window + 1,
+            num_features=len(dl.CACHE_IP_TO_IDX) + 1,
             hidden_dim=args.hidden_dim,
             contrastive_encoder=contrastive_encoder,
         )
