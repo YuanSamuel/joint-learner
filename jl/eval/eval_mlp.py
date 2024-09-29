@@ -2,9 +2,9 @@ import time
 import torch
 from torch import nn
 
-from models.mlp_replacement import CacheReplacementNN
-from dataloader import get_cache_dataloader
-from utils import parse_args
+from jl.models.mlp_replacement import CacheReplacementNN
+from jl.dataloaders.dataloader import get_cache_dataloader
+from jl.utils import parse_args
 
 args = parse_args()
 

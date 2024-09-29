@@ -1,11 +1,11 @@
 import csv
 import torch
 from collections import deque
-from dataloader import PrefetchInfo, get_cache_ip_idx
 from torch.utils.data import Dataset, DataLoader
-from utils import has_dataset, save_dataset, load_dataset, split_dataset, tqdm
+from jl.dataloaders.dataloader import PrefetchInfo, get_cache_ip_idx
+from jl.utils import has_dataset, save_dataset, load_dataset, split_dataset, tqdm
 
-import dataloader as dl
+import jl.dataloaders.dataloader as dl
 
 
 class JointData:

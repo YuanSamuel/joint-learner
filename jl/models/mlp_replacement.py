@@ -3,8 +3,8 @@ import torch
 from torch import nn
 import numpy as np
 
-from models.contrastive_encoder import ContrastiveEncoder
-from models.transformer_encoder import TransformerEncoder, JointTransformerEncoder
+from jl.models.contrastive_encoder import ContrastiveEncoder
+from jl.models.transformer_encoder import TransformerEncoder, JointTransformerEncoder
 
 class CacheReplacementNN(nn.Module):
     def __init__(self, num_features, hidden_dim, contrastive_encoder=None):

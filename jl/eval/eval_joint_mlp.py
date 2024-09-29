@@ -3,16 +3,16 @@ import torch
 
 from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
-from models.mlp_replacement import (
+from jl.models.mlp_replacement import (
     CacheReplacementNN,
     CacheReplacementNNTransformer,
     CacheReplacementNNJointTransformer,
 )
-from joint_dataloader import get_joint_dataloader
-from utils import parse_args, load_config
-from models.contrastive_encoder import ContrastiveEncoder
-from data_engineering.count_labels import count_labels
-import dataloader as dl
+from jl.dataloaders.joint_dataloader import get_joint_dataloader
+from jl.utils import parse_args, load_config
+from jl.models.contrastive_encoder import ContrastiveEncoder
+from jl.data_engineering.count_labels import count_labels
+import jl.dataloaders.dataloader as dl
 
 
 def eval(args):

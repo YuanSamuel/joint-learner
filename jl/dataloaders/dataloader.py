@@ -3,8 +3,8 @@ import lzma
 import torch
 from collections import deque
 from torch.utils.data import Dataset, DataLoader, Subset
-from data_engineering.benchmark import BenchmarkTrace
-from utils import has_dataset, save_dataset, load_dataset, split_dataset
+from jl.data_engineering.benchmark import BenchmarkTrace
+from jl.utils import has_dataset, save_dataset, load_dataset, split_dataset
 
 CACHE_IP_TO_IDX = {-1: 0}
 

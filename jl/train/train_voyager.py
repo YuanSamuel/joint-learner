@@ -1,11 +1,11 @@
 import time
 import torch
 
-from utils import parse_args, load_config
-from dataloader import read_benchmark_trace
-from models.voyager import Voyager
-from loss_fns.hierarchical_ce import HierarchicalCrossEntropyWithLogitsLoss
-from eval.measure_voyager import (
+from jl.utils import parse_args, load_config
+from jl.dataloaders.dataloader import read_benchmark_trace
+from jl.models.voyager import Voyager
+from jl.loss_fns.hierarchical_ce import HierarchicalCrossEntropyWithLogitsLoss
+from jl.eval.measure_voyager import (
     count_page_correct,
     count_offset_correct,
     count_overall_correct,

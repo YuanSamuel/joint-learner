@@ -3,14 +3,14 @@ import torch
 
 from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
-from models.mlp_replacement import CacheReplacementNN, CacheReplacementNNTransformer
-from dataloader import get_cache_dataloader
-from utils import parse_args, load_dataset, has_dataset
-from models.contrastive_encoder import ContrastiveEncoder
-from models.transformer_encoder import TransformerEncoder
-from data_engineering.count_labels import count_labels
+from jl.models.mlp_replacement import CacheReplacementNN, CacheReplacementNNTransformer
+from jl.dataloaders.dataloader import get_cache_dataloader
+from jl.utils import parse_args, load_dataset, has_dataset
+from jl.models.contrastive_encoder import ContrastiveEncoder
+from jl.models.transformer_encoder import TransformerEncoder
+from jl.data_engineering.count_labels import count_labels
 
-import dataloader as dl
+import jl.dataloaders.dataloader as dl
 
 
 def train(args):

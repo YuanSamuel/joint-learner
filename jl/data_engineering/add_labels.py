@@ -1,6 +1,6 @@
 import argparse
 import csv
-from label_min_optimized import get_beladys
+from jl.data_engineering.label_min_optimized import get_beladys
 
 def process_csv(input_file, output_file, cache_size):
     print("Begin processing file")

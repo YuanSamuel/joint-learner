@@ -3,14 +3,14 @@ import torch
 
 from torch import nn
 from torch.optim.lr_scheduler import ExponentialLR
-from models.contrastive_encoder import ContrastiveEncoder
-from models.voyager import VoyagerEncoder
-from models.transformer_encoder import TransformerEncoder, PrefetchTransformerEncoder
-from contrastive_dataloader import get_contrastive_dataloader
-from utils import parse_args, load_config, tqdm
-from loss_fns.contrastive import ContrastiveLoss
+from jl.models.contrastive_encoder import ContrastiveEncoder
+from jl.models.voyager import VoyagerEncoder
+from jl.models.transformer_encoder import TransformerEncoder, PrefetchTransformerEncoder
+from jl.dataloaders.contrastive_dataloader import get_contrastive_dataloader
+from jl.utils import parse_args, load_config, tqdm
+from jl.loss_fns.contrastive import ContrastiveLoss
 
-import dataloader as dl
+import jl.dataloaders.dataloader as dl
 
 
 def train(args):
