@@ -46,4 +46,3 @@ if __name__ == "__main__":
     output_csv_path = args.output
     cache_size = args.cache_size
     process_csv(input_csv_path, output_csv_path, cache_size)
-

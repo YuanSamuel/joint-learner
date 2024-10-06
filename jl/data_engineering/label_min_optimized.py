@@ -17,7 +17,7 @@ def get_beladys(accesses, cache_size):
     decisions = []
 
     for i, access in enumerate(accesses):
-        if i % 100000 == 0:
+        if i % 1000000 == 0:
             print(f"Processing access {i} of {len(accesses)}")
         next_use = future_indices[i]
 

@@ -30,14 +30,14 @@ class DATACOLLECTOR {
     // }
 
     static void setName(const std::string& name) {
-        if (!fs::exists("collector_output")) {
-            fs::create_directory("collector_output");
+        if (!fs::exists("data/collector_output")) {
+            fs::create_directory("data/collector_output");
         }
 
         run_name = name;
 
-        cache_access_log.open("collector_output/cache_accesses_" + run_name + ".csv", std::ios::out);
-        prefetch_log.open("collector_output/prefetches_" + run_name + ".csv", std::ios::out);
+        cache_access_log.open("data/collector_output/cache_accesses_" + run_name + ".csv", std::ios::out);
+        prefetch_log.open("data/collector_output/prefetches_" + run_name + ".csv", std::ios::out);
 
         cache_access_log << "triggering_cpu"
                          << ","

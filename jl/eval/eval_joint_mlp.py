@@ -12,6 +12,7 @@ from jl.dataloaders.joint_dataloader import get_joint_dataloader
 from jl.utils import parse_args, load_config
 from jl.models.contrastive_encoder import ContrastiveEncoder
 from jl.data_engineering.count_labels import count_labels
+from jl.vis.visualize_attention import visualize_joint_attention
 import jl.dataloaders.dataloader as dl
 
 
@@ -88,6 +89,32 @@ def eval(args):
 
     print(f"Accuracy: {accuracy:.2f}%, Zeroes: {zeroes}")
     print(f"------------------------------")
+
+    # Visualize attention weights
+    if args.use_transformer:
+        data_iter = iter(dataloader)
+        batch = next(data_iter)
+
+        first_sample = tuple(tensor[0] for tensor in batch)
+
+        print(first_sample)
+
+        cache_pc, prefetch_pc, prefetch_page, prefetch_offset, label = first_sample
+        cache_pc, prefetch_pc, prefetch_page, prefetch_offset, label = (
+            cache_pc.to(device),
+            prefetch_pc.to(device),
+            prefetch_page.to(device),
+            prefetch_offset.to(device),
+            label.to(device),
+        )
+
+        visualize_joint_attention(
+            model,
+            cache_pc,
+            prefetch_pc,
+            prefetch_page,
+            prefetch_offset,
+        )
 
 
 def count_correct(outputs, labels):
